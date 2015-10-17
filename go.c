@@ -92,8 +92,39 @@ group* group_create(dot* anchor, int freedoms) {
 	}
 	group* gp = (group*) p;
 	gp->anchor = anchor;
+	gp->length = 1;
 	gp->freedoms = freedoms;
 	return gp;
+}
+
+// Does not do freedom calculations
+// Only adds stone before anchor in circular doubly linked list
+// Assumes linked list never empty
+void group_add_stone(group* gp, dot* stone) {
+	dot* anchor = gp->anchor;
+	stone->prev = anchor->prev;
+	stone->next = anchor;
+	anchor->prev->next = stone;
+	anchor->prev = stone;
+	++gp->length;
+}
+
+// Merges b into a
+// Caller must destroy b afterwards
+void group_merge(group* a, group* b) {
+	dot* a0 = a->anchor;
+	dot* b0 = b->anchor;
+
+	dot* stone = b0;
+	do {
+		stone->group = a;
+		stone = stone->next;
+	} while (stone->next != b0);
+
+	a0->prev->next = b0->prev;
+	b0->prev->prev = a0->prev;
+	a0->prev = b0;
+	b0->next = a0;
 }
 
 move* move_create() {

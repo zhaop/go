@@ -7,8 +7,8 @@
 #define COUNT SIZE*SIZE
 
 /*
-group { dot* anchor , int freedoms }
-dot   { color player , group* group }
+group { dot* anchor , int length, int freedoms }
+dot   { color player , group* group, dot* prev, dot* next }
 state { color nextPlayer , dot[] board }
 */
 
@@ -19,9 +19,11 @@ struct dot;
 
 typedef struct group {
 	struct dot* anchor;
+	int length;
 	int freedoms;
 } group;
 
+// Dots are sometimes called "stone"s when they're not empty
 typedef struct dot {
 	color player;
 	struct group* group;
