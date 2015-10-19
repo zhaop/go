@@ -279,6 +279,86 @@ bool go_move_play(state* st, move* mv_ptr) {
 	if (RIGHT_OK) enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i, j+1);
 	if (DOWN_OK)  enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i+1, j);
 
+	/*
+	If there are dying friendly groups:
+		if I have liberties:
+			merge with every friendly;
+		else if I'm dead too:
+			illegal move;
+	If there are living friendly groups:
+		merge with every friendly;
+	If there are no friendly groups:
+		if I have liberties:
+			make a group for myself;
+		else if I have no liberties:
+			illegal move;
+
+	d = dying friendlies
+	f = living friendlies
+	l = has liberties
+
+	bit ordering: dfl
+
+	Merge with every friendly:
+		f | d & l
+		sort d:
+		010	2
+		011	3
+		101	5
+		110	6
+		111	7
+	Illegal move:
+		!l & !f
+		000	0
+		100	4
+	Make a group for myself:
+		!d & !f & l
+		001	1
+
+	if (f = living friendlies)
+		mark merge;
+	else
+		if (no liberties)
+			mark illegal move;
+		else if (dying friendlies)
+			mark merge;
+		else
+			make a group for myself;
+			done;
+
+	Assuming mark merge = !(mark illegal move):
+	if (no living friendlies):
+		if (no liberties):
+			report illegal move;
+			done;
+		else if (no dying friendlies):
+			make a group for myself;
+			done;
+	merge with every friendly;
+
+	More concretely:
+	decrement_all_friendlies_freedoms()
+	if (!search_for_living_friendlies())	// Look for illegal or lone-stone cases
+		if (!search_for_liberties())
+			increment_all_neighbors_freedoms()
+			return false	// Illegal
+		else if (!search_for_dying_friendlies())
+			make_lone_group(count_freedoms())
+			return true
+	merge_with_every_friendly()
+
+	merge_with_every_friendly(board, i, j):
+		bool part_of_group = false
+		group gp0
+		for each friendly neighbor:
+			if (part_of_group)
+				group_merge(gp0, neighbor.group)
+			else
+				gp0 = neighbor.group
+				group_add_stone(gp0, BOARD(i, j))
+	*/
+
+
 	b[mv].player = st->nextPlayer;
 	st->nextPlayer = enemy;
 
