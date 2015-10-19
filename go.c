@@ -107,6 +107,10 @@ group* group_create(dot* anchor, int freedoms) {
 	return gp;
 }
 
+void group_destroy(group* gp) {
+	free(gp);
+}
+
 // Does not do freedom calculations
 // Only adds stone before anchor in circular doubly linked list
 // Assumes linked list never empty
