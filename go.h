@@ -6,6 +6,8 @@
 #define SIZE 5
 #define COUNT SIZE*SIZE
 
+#define KOMI 6.5
+
 #define NO_POSSIBLE_KO -1
 
 /*
@@ -14,7 +16,7 @@ dot   { color player , group* group, dot* prev, dot* next }
 state { color nextPlayer , dot[] board }
 */
 
-typedef enum { EMPTY, BLACK, WHITE } color;
+typedef enum { EMPTY, BLACK, WHITE, NEUTRAL } color;
 
 struct group;
 struct dot;
@@ -40,6 +42,11 @@ typedef struct {
 	int possibleKo;		// Board index or NO_POSSIBLE_KO
 	dot board[COUNT];
 } state;
+
+typedef struct {
+	color player;
+	int area;
+} territory;
 
 typedef int move;
 

@@ -47,6 +47,88 @@ void state_destroy(state* st) {
 	free(st);
 }
 
+#define ALREADY_COUNTED(i, j) already_counted[(i)*SIZE+(j)]
+#define BOARD(i,j) board[(i)*SIZE+(j)]
+#define UP_OK    (i >= 1)
+#define LEFT_OK  (j >= 1)
+#define RIGHT_OK (j <= SIZE-2)
+#define DOWN_OK  (i <= SIZE-2)
+
+// Recursively update the territory struct until all accounted for
+void count_territory(dot* board, bool* already_counted, int i, int j, territory* tr) {
+	color neighbor_player;
+
+	ALREADY_COUNTED(i, j) = true;
+	++tr->area;
+
+	if (UP_OK && !ALREADY_COUNTED(i-1, j)) {
+		neighbor_player = BOARD(i-1, j).player;
+		if (neighbor_player == EMPTY) {
+			count_territory(board, already_counted, i-1, j, tr);
+		} else if (tr->player == EMPTY) {
+			tr->player = neighbor_player;
+		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
+			tr->player = NEUTRAL;
+		}
+	}
+
+	if (LEFT_OK && !ALREADY_COUNTED(i, j-1)) {
+		neighbor_player = BOARD(i, j-1).player;
+		if (neighbor_player == EMPTY) {
+			count_territory(board, already_counted, i, j-1, tr);
+		} else if (tr->player == EMPTY) {
+			tr->player = neighbor_player;
+		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
+			tr->player = NEUTRAL;
+		}
+	}
+
+	if (RIGHT_OK && !ALREADY_COUNTED(i, j+1)) {
+		neighbor_player = BOARD(i, j+1).player;
+		if (neighbor_player == EMPTY) {
+			count_territory(board, already_counted, i, j+1, tr);
+		} else if (tr->player == EMPTY) {
+			tr->player = neighbor_player;
+		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
+			tr->player = NEUTRAL;
+		}
+	}
+
+	if (DOWN_OK && !ALREADY_COUNTED(i+1, j)) {
+		neighbor_player = BOARD(i+1, j).player;
+		if (neighbor_player == EMPTY) {
+			count_territory(board, already_counted, i+1, j, tr);
+		} else if (tr->player == EMPTY) {
+			tr->player = neighbor_player;
+		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
+			tr->player = NEUTRAL;
+		}
+	}
+}
+
+// Score must be a float array[3]
+void state_score(state* st, float* score) {
+	dot* board = st->board;
+
+	score[BLACK] = st->prisoners[BLACK];
+	score[WHITE] = st->prisoners[WHITE] + KOMI;
+
+	bool already_counted[COUNT];
+	int i;
+	int j;
+	for (i = 0; i < SIZE; ++i) {
+		for (j = 0; j < SIZE; ++j) {
+			if (!already_counted[i*SIZE+j] && BOARD(i, j).player == EMPTY) {
+				territory tr = {EMPTY, 0};
+				count_territory(board, already_counted, i, j, &tr);
+				if (tr.player == BLACK || tr.player == WHITE) {
+					score[tr.player] += tr.area;
+				}
+			}
+		}
+	}
+}
+
 char color_char(color player) {
 	if (player == BLACK) {
 		return 'X';
@@ -66,9 +148,6 @@ char int_char(int n) {
 		return (n - 36) + 'A';
 	}
 }
-
-// row i, col j
-#define BOARD(i,j) board[(i)*SIZE+(j)]
 
 void state_print(state* st) {
 	int i;
@@ -94,7 +173,9 @@ void state_print(state* st) {
 			printf("%c ", color_char(BOARD(i, j).player));
 		}
 	}
-	printf("\n");
+	float score[3];
+	state_score(st, score);
+	printf("\n\nScore: (%.1fx  %.1fo)\n", score[BLACK], score[WHITE]);
 }
 
 group* group_create(dot* anchor, int freedoms) {
@@ -162,11 +243,6 @@ group* group_merge_and_destroy_smaller(group* gp1, group* gp2) {
 
 	return a;
 }
-
-#define UP_OK    (i >= 1)
-#define LEFT_OK  (j >= 1)
-#define RIGHT_OK (j <= SIZE-2)
-#define DOWN_OK  (i <= SIZE-2)
 
 // Change freedoms for neighboring groups of given color
 void change_neighbors_freedoms_if_specific_color(dot* board, color player, int i, int j, int delta) {
