@@ -66,7 +66,7 @@ char int_char(int n) {
 }
 
 // row i, col j
-#define BOARD(i,j) board[i*SIZE+j]
+#define BOARD(i,j) board[(i)*SIZE+(j)]
 
 void state_print(state* st) {
 	int i;
@@ -123,9 +123,19 @@ void group_add_stone(group* gp, dot* stone, int liberties) {
 	gp->freedoms += liberties;
 }
 
-// Merges b into a
-// Caller must destroy b afterwards
-void group_merge(group* a, group* b) {
+// Merges smaller group into bigger, and returns the latter
+// DO NOT have any references to these groups prior to call (one is destroyed)
+group* group_merge_and_destroy_smaller(group* gp1, group* gp2) {
+	group* a;
+	group* b;
+	if (gp1->length >= gp2->length) {
+		a = gp1;
+		b = gp2;
+	} else {
+		a = gp2;
+		b = gp1;
+	}
+
 	dot* a0 = a->anchor;
 	dot* b0 = b->anchor;
 
@@ -139,6 +149,11 @@ void group_merge(group* a, group* b) {
 	b0->prev->prev = a0->prev;
 	a0->prev = b0;
 	b0->next = a0;
+
+	a->length += b->length;
+	a->freedoms += b->freedoms;
+
+	return a;
 }
 
 #define UP_OK    (i >= 1)
@@ -177,7 +192,9 @@ void group_kill_stones(dot* board, group* gp) {
 		stone->group = NULL;
 		stone->prev = NULL;
 		stone->next = NULL;
-	} while (tmp_next != gp0);
+
+		stone = tmp_next;
+	} while (stone != gp0);
 }
 
 move* move_create() {
@@ -257,97 +274,32 @@ bool remove_dead_neighbor_enemy(dot* board, color enemy, int i, int j) {
 	return false;
 }
 
-bool go_move_play(state* st, move* mv_ptr) {
-	move mv = *mv_ptr;
-	dot* b = st->board;
-	color friendly = st->nextPlayer;
-	color enemy = (friendly == BLACK) ? WHITE : BLACK;
+bool has_living_friendlies(dot* board, color friendly, int i, int j) {
+	if (UP_OK    && BOARD(i-1, j).player == friendly && BOARD(i-1, j).group->freedoms != 0) return true;
+	if (LEFT_OK  && BOARD(i, j-1).player == friendly && BOARD(i, j-1).group->freedoms != 0) return true;
+	if (RIGHT_OK && BOARD(i, j+1).player == friendly && BOARD(i, j+1).group->freedoms != 0) return true;
+	if (DOWN_OK  && BOARD(i+1, j).player == friendly && BOARD(i+1, j).group->freedoms != 0) return true;
+	return false;
+}
 
-	int i = mv / SIZE;
-	int j = mv % SIZE;
+bool has_dying_friendlies(dot* board, color friendly, int i, int j) {
+	if (UP_OK    && BOARD(i-1, j).player == friendly && BOARD(i-1, j).group->freedoms == 0) return true;
+	if (LEFT_OK  && BOARD(i, j-1).player == friendly && BOARD(i, j-1).group->freedoms == 0) return true;
+	if (RIGHT_OK && BOARD(i, j+1).player == friendly && BOARD(i, j+1).group->freedoms == 0) return true;
+	if (DOWN_OK  && BOARD(i+1, j).player == friendly && BOARD(i+1, j).group->freedoms == 0) return true;
+	return false;
+}
 
-	// Check neighbors for killed enemies
-	// Decrease every enemy neighbor's group's freedom by 1 (may decrement more than once)
-	// Check each enemy neighbor for deadness
-	// If no dead, continue
-	change_neighbors_freedoms_if_specific_color(b, enemy, i, j, -1);
+group* create_lone_group(dot* stone, color player, int liberties) {
+	stone->player = player;
+	stone->prev = stone;
+	stone->next = stone;
+	stone->group = group_create(stone, liberties);
+	return stone->group;
+}
 
-	// If dead enemy, kill group
-	bool enemy_killed = false;
-	if (UP_OK)    enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i-1, j);
-	if (LEFT_OK)  enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i, j-1);
-	if (RIGHT_OK) enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i, j+1);
-	if (DOWN_OK)  enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i+1, j);
-
-	/*
-	If there are dying friendly groups:
-		if I have liberties:
-			merge with every friendly;
-		else if I'm dead too:
-			illegal move;
-	If there are living friendly groups:
-		merge with every friendly;
-	If there are no friendly groups:
-		if I have liberties:
-			make a group for myself;
-		else if I have no liberties:
-			illegal move;
-
-	d = dying friendlies
-	f = living friendlies
-	l = has liberties
-
-	bit ordering: dfl
-
-	Merge with every friendly:
-		f | d & l
-		sort d:
-		010	2
-		011	3
-		101	5
-		110	6
-		111	7
-	Illegal move:
-		!l & !f
-		000	0
-		100	4
-	Make a group for myself:
-		!d & !f & l
-		001	1
-
-	if (f = living friendlies)
-		mark merge;
-	else
-		if (no liberties)
-			mark illegal move;
-		else if (dying friendlies)
-			mark merge;
-		else
-			make a group for myself;
-			done;
-
-	Assuming mark merge = !(mark illegal move):
-	if (no living friendlies):
-		if (no liberties):
-			report illegal move;
-			done;
-		else if (no dying friendlies):
-			make a group for myself;
-			done;
-	merge with every friendly;
-
-	More concretely:
-	decrement_all_friendlies_freedoms()
-	if (!search_for_living_friendlies())	// Look for illegal or lone-stone cases
-		if (!search_for_liberties())
-			increment_all_neighbors_freedoms()
-			return false	// Illegal
-		else if (!search_for_dying_friendlies())
-			make_lone_group(count_freedoms())
-			return true
-	merge_with_every_friendly()
-
-	merge_with_every_friendly(board, i, j):
+/*
+merge_with_every_friendly(board, i, j):
 		bool part_of_group = false
 		group gp0
 		for each friendly neighbor:
@@ -355,11 +307,119 @@ bool go_move_play(state* st, move* mv_ptr) {
 				group_merge(gp0, neighbor.group)
 			else
 				gp0 = neighbor.group
-				group_add_stone(gp0, BOARD(i, j))
+				group_add_stone(gp0, BOARD(i, j), liberties)
+*/
+void merge_with_every_friendly(dot* board, color friendly, int i, int j, int liberties) {
+	group* gp0 = create_lone_group(&BOARD(i, j), friendly, liberties);
+
+	if (UP_OK    && BOARD(i-1, j).player == friendly) gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i-1, j).group);
+	if (LEFT_OK  && BOARD(i, j-1).player == friendly) gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i, j-1).group);
+	if (RIGHT_OK && BOARD(i, j+1).player == friendly) gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i, j+1).group);
+	if (DOWN_OK  && BOARD(i+1, j).player == friendly) gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i+1, j).group);
+
+	/*// Maybe better performance? But more spaghetti
+	bool part_of_group = false;
+	group* gp0 = NULL;
+	if (UP_OK && BOARD(i-1, j).player == friendly) {
+		if (!part_of_group) {
+			gp0 = BOARD(i-1, j).group;
+			group_add_stone(gp0, &BOARD(i, j), liberties);
+		} else {
+			gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i-1, j).group);
+		}
+	}
+	if (LEFT_OK && BOARD(i, j-1).player == friendly) {
+		if (!part_of_group) {
+			gp0 = BOARD(i, j-1).group;
+			group_add_stone(gp0, &BOARD(i, j), liberties);
+		} else {
+			gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i, j-1).group);
+		}
+	}
+	if (RIGHT_OK && BOARD(i, j+1).player == friendly) {
+		if (!part_of_group) {
+			gp0 = BOARD(i, j+1).group;
+			group_add_stone(gp0, &BOARD(i, j), liberties);
+		} else {
+			gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i, j+1).group);
+		}
+	}
+	if (DOWN_OK && BOARD(i+1, j).player == friendly) {
+		if (!part_of_group) {
+			gp0 = BOARD(i+1, j).group;
+			group_add_stone(gp0, &BOARD(i, j), liberties);
+		} else {
+			gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i+1, j).group);
+		}
+	}*/
+}
+
+bool go_move_play(state* st, move* mv_ptr) {
+	move mv = *mv_ptr;
+	dot* board = st->board;
+	color friendly = st->nextPlayer;
+	color enemy = (friendly == BLACK) ? WHITE : BLACK;
+
+	if (mv < 0 || mv >= COUNT) {
+		return false;
+	}
+
+	int i = mv / SIZE;
+	int j = mv % SIZE;
+
+	if (BOARD(i, j).player != EMPTY) {
+		return false;
+	}
+
+	// Check neighbors for killed enemies
+	change_neighbors_freedoms_if_specific_color(board, enemy, i, j, -1);
+
+	// If dead enemy, kill group
+	// TODO Count how many are killed (count prisoners, and also ko!)
+	if (UP_OK)    remove_dead_neighbor_enemy(board, enemy, i-1, j);
+	if (LEFT_OK)  remove_dead_neighbor_enemy(board, enemy, i, j-1);
+	if (RIGHT_OK) remove_dead_neighbor_enemy(board, enemy, i, j+1);
+	if (DOWN_OK)  remove_dead_neighbor_enemy(board, enemy, i+1, j);
+
+	// Count own liberties
+	int liberties = 0;
+	if (UP_OK    && BOARD(i-1, j).player == EMPTY) ++liberties;
+	if (LEFT_OK  && BOARD(i, j-1).player == EMPTY) ++liberties;
+	if (RIGHT_OK && BOARD(i, j+1).player == EMPTY) ++liberties;
+	if (DOWN_OK  && BOARD(i+1, j).player == EMPTY) ++liberties;
+
+	/*
+	int liberties = count_liberties()
+	decrement_all_friendlies_freedoms()
+	if (!search_for_living_friendlies())	// Look for illegal or lone-stone cases
+		if (!liberties)
+			increment_all_neighbors_freedoms()
+			return false	// Illegal
+		else if (!search_for_dying_friendlies())
+			make_lone_group(liberties)
+			return true
+	merge_with_every_friendly()
 	*/
+	// Look for dead friendly neighbors
+	change_neighbors_freedoms_if_specific_color(board, friendly, i, j, -1);
 
+	// Look for illegal move or lone-stone cases
+	bool merge_with_friendlies = true;
+	if (!has_living_friendlies(board, friendly, i, j)) {
+		if (liberties == 0) {
+			change_neighbors_freedoms_if_specific_color(board, friendly, i, j, +1);
+			change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);
+			return false;	// Illegal
+		} else if (!has_dying_friendlies(board, friendly, i, j)) {
+			create_lone_group(&BOARD(i, j), friendly, liberties);
+			merge_with_friendlies = false;
+		}
+	}
 
-	b[mv].player = st->nextPlayer;
+	if (merge_with_friendlies) {
+		merge_with_every_friendly(board, friendly, i, j, liberties);
+	}
+
 	st->nextPlayer = enemy;
 
 	return true;
