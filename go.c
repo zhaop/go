@@ -172,11 +172,12 @@ void change_neighbors_freedoms_if_specific_color(dot* board, color player, int i
 	return;
 }
 
-// Removes all of a group's stones from the board
+// Removes all of a group's stones from the board, returns number captured
 // Caller must destroy gp afterwards
-void group_kill_stones(dot* board, group* gp) {
+int group_kill_stones(dot* board, group* gp) {
 	int i;
 	int j;
+	int captured = 0;
 	dot* gp0 = gp->anchor;
 	color enemy = (gp0->player == BLACK) ? WHITE : BLACK;
 	dot* stone = gp0;
@@ -186,6 +187,7 @@ void group_kill_stones(dot* board, group* gp) {
 
 		i = stone->index / SIZE;
 		j = stone->index % SIZE;
+		++captured;
 		change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);
 
 		stone->player = EMPTY;
@@ -195,6 +197,8 @@ void group_kill_stones(dot* board, group* gp) {
 
 		stone = tmp_next;
 	} while (stone != gp0);
+
+	return captured;
 }
 
 move* move_create() {
@@ -263,15 +267,15 @@ bool go_move_legal(state* st, move* mv) {
 	return false;
 }
 
-// Destroys enemy group at (i, j) if dead
-bool remove_dead_neighbor_enemy(dot* board, color enemy, int i, int j) {
+// Destroys enemy group at (i, j) if dead, return number captured
+int remove_dead_neighbor_enemy(dot* board, color enemy, int i, int j) {
 	if ( (BOARD(i, j).player == enemy) && (BOARD(i, j).group->freedoms == 0)) {
 		group* gp = BOARD(i, j).group;
-		group_kill_stones(board, gp);
+		int captured = group_kill_stones(board, gp);
 		group_destroy(gp);
-		return true;
+		return captured;
 	}
-	return false;
+	return 0;
 }
 
 bool has_living_friendlies(dot* board, color friendly, int i, int j) {
@@ -360,15 +364,16 @@ bool go_move_play(state* st, move* mv_ptr) {
 		return false;
 	}
 
-	// Check neighbors for killed enemies
+	// Check neighbors for dead enemies
 	change_neighbors_freedoms_if_specific_color(board, enemy, i, j, -1);
 
 	// If dead enemy, kill group
-	// TODO Count how many are killed (count prisoners, and also ko!)
-	if (UP_OK)    remove_dead_neighbor_enemy(board, enemy, i-1, j);
-	if (LEFT_OK)  remove_dead_neighbor_enemy(board, enemy, i, j-1);
-	if (RIGHT_OK) remove_dead_neighbor_enemy(board, enemy, i, j+1);
-	if (DOWN_OK)  remove_dead_neighbor_enemy(board, enemy, i+1, j);
+	// FIXME Bug with snapback captures being marked as invalid
+	int captured = 0;
+	if (UP_OK)    captured += remove_dead_neighbor_enemy(board, enemy, i-1, j);
+	if (LEFT_OK)  captured += remove_dead_neighbor_enemy(board, enemy, i, j-1);
+	if (RIGHT_OK) captured += remove_dead_neighbor_enemy(board, enemy, i, j+1);
+	if (DOWN_OK)  captured += remove_dead_neighbor_enemy(board, enemy, i+1, j);
 
 	// Count own liberties
 	int liberties = 0;
@@ -397,6 +402,7 @@ bool go_move_play(state* st, move* mv_ptr) {
 		merge_with_every_friendly(board, friendly, i, j, liberties);
 	}
 
+	st->prisoners[st->nextPlayer] += captured;
 	st->nextPlayer = enemy;
 
 	return true;
