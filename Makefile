@@ -9,11 +9,11 @@ CC      = gcc
 # Include directory
 INCLUDE = include
 
-# Compiler flags (-g to debug, -pg to profile)
-CFLAGS  = -Wall -Wextra -I${INCLUDE} -O3
+# Compiler flags (-O3 to optimize, -g to debug, -pg to profile)
+CFLAGS  = -Wall -Wextra -I${INCLUDE} -g
 
-# Libraries
-LIBS    = -O3 -lm -L/usr/lib
+# Libraries (-O3 to optimize)
+LIBS    = -lm -L/usr/lib
 
 # Source code to compile
 CFILES  = main.c go.c utils.c
