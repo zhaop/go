@@ -6,6 +6,8 @@
 #define SIZE 5
 #define COUNT SIZE*SIZE
 
+#define NO_POSSIBLE_KO -1
+
 /*
 group { dot* anchor , int length, int freedoms }
 dot   { color player , group* group, dot* prev, dot* next }
@@ -35,6 +37,7 @@ typedef struct dot {
 typedef struct {
 	color nextPlayer;
 	int prisoners[3];
+	int possibleKo;		// Board index or NO_POSSIBLE_KO
 	dot board[COUNT];
 } state;
 

@@ -12,6 +12,7 @@ state* state_create() {
 	}
 	state* st = (state*) p;
 	st->nextPlayer = BLACK;
+	st->possibleKo = NO_POSSIBLE_KO;
 
 	int i;
 	dot* b = st->board;
@@ -28,6 +29,7 @@ state* state_create() {
 // Copy st0 --> st1
 void state_copy(state* st0, state* st1) {
 	st1->nextPlayer = st0->nextPlayer;
+	st1->possibleKo = st0->possibleKo;
 
 	st1->prisoners[1] = st0->prisoners[1];
 	st1->prisoners[2] = st0->prisoners[2];
@@ -272,6 +274,15 @@ bool go_move_legal(state* st, move* mv) {
 	return false;
 }
 
+// True if ko rule forbids move
+bool check_possible_ko(dot* board, int possibleKo, int i, int j) {
+	if (possibleKo == i*SIZE + j) {
+		group* gp = BOARD(i, j).group;
+		return (gp->length == 1) && (gp->freedoms == 1);
+	}
+	return false;
+}
+
 // Destroys enemy group at (i, j) if dead, return number captured
 int remove_dead_neighbor_enemy(dot* board, color enemy, int i, int j) {
 	if ( (BOARD(i, j).player == enemy) && (BOARD(i, j).group->freedoms == 0)) {
@@ -369,6 +380,19 @@ bool go_move_play(state* st, move* mv_ptr) {
 		return false;
 	}
 
+	// Check for simple ko
+	if (st->possibleKo != NO_POSSIBLE_KO) {
+		bool ko_rule_applies =
+			   (UP_OK    && check_possible_ko(board, st->possibleKo, i-1, j))
+			|| (LEFT_OK  && check_possible_ko(board, st->possibleKo, i, j-1))
+			|| (RIGHT_OK && check_possible_ko(board, st->possibleKo, i, j+1))
+			|| (DOWN_OK  && check_possible_ko(board, st->possibleKo, i+1, j));
+
+		if (ko_rule_applies) {
+			return false;
+		}
+	}
+
 	// Check neighbors for dead enemies
 	change_neighbors_freedoms_if_specific_color(board, enemy, i, j, -1);
 
@@ -378,6 +402,13 @@ bool go_move_play(state* st, move* mv_ptr) {
 	if (LEFT_OK)  captured += remove_dead_neighbor_enemy(board, enemy, i, j-1);
 	if (RIGHT_OK) captured += remove_dead_neighbor_enemy(board, enemy, i, j+1);
 	if (DOWN_OK)  captured += remove_dead_neighbor_enemy(board, enemy, i+1, j);
+
+	// If need, check for ko on next move
+	if (captured == 1) {
+		st->possibleKo = mv;
+	} else {
+		st->possibleKo = NO_POSSIBLE_KO;
+	}
 
 	// Count own liberties
 	int liberties = 0;
