@@ -298,17 +298,6 @@ group* create_lone_group(dot* stone, color player, int liberties) {
 	return stone->group;
 }
 
-/*
-merge_with_every_friendly(board, i, j):
-		bool part_of_group = false
-		group gp0
-		for each friendly neighbor:
-			if (part_of_group)
-				group_merge(gp0, neighbor.group)
-			else
-				gp0 = neighbor.group
-				group_add_stone(gp0, BOARD(i, j), liberties)
-*/
 void merge_with_every_friendly(dot* board, color friendly, int i, int j, int liberties) {
 	group* gp0 = create_lone_group(&BOARD(i, j), friendly, liberties);
 
@@ -388,18 +377,6 @@ bool go_move_play(state* st, move* mv_ptr) {
 	if (RIGHT_OK && BOARD(i, j+1).player == EMPTY) ++liberties;
 	if (DOWN_OK  && BOARD(i+1, j).player == EMPTY) ++liberties;
 
-	/*
-	int liberties = count_liberties()
-	decrement_all_friendlies_freedoms()
-	if (!search_for_living_friendlies())	// Look for illegal or lone-stone cases
-		if (!liberties)
-			increment_all_neighbors_freedoms()
-			return false	// Illegal
-		else if (!search_for_dying_friendlies())
-			make_lone_group(liberties)
-			return true
-	merge_with_every_friendly()
-	*/
 	// Look for dead friendly neighbors
 	change_neighbors_freedoms_if_specific_color(board, friendly, i, j, -1);
 
