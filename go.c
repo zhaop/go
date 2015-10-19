@@ -128,6 +128,11 @@ void group_add_stone(group* gp, dot* stone, int liberties) {
 group* group_merge_and_destroy_smaller(group* gp1, group* gp2) {
 	group* a;
 	group* b;
+
+	if (gp1 == gp2) {
+		return gp1;
+	}
+
 	if (gp1->length >= gp2->length) {
 		a = gp1;
 		b = gp2;
@@ -368,7 +373,6 @@ bool go_move_play(state* st, move* mv_ptr) {
 	change_neighbors_freedoms_if_specific_color(board, enemy, i, j, -1);
 
 	// If dead enemy, kill group
-	// FIXME Bug with snapback captures being marked as invalid
 	int captured = 0;
 	if (UP_OK)    captured += remove_dead_neighbor_enemy(board, enemy, i-1, j);
 	if (LEFT_OK)  captured += remove_dead_neighbor_enemy(board, enemy, i, j-1);
