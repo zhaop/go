@@ -2,7 +2,7 @@
 
 #include "go.h"
 
-int main(int argc, char* argv[]) {
+int main(/*int argc, char* argv[]*/) {
 
 	state* st = state_create();
 	if (!st) return -1;
