@@ -141,6 +141,45 @@ void group_merge(group* a, group* b) {
 	b0->next = a0;
 }
 
+#define UP_OK    (i >= 1)
+#define LEFT_OK  (j >= 1)
+#define RIGHT_OK (j <= SIZE-2)
+#define DOWN_OK  (i <= SIZE-2)
+
+// Change freedoms for neighboring groups of given color
+void change_neighbors_freedoms_if_specific_color(dot* board, color player, int i, int j, int delta) {
+
+	if (UP_OK    && BOARD(i-1, j).player == player) BOARD(i-1, j).group->freedoms += delta;
+	if (LEFT_OK  && BOARD(i, j-1).player == player) BOARD(i, j-1).group->freedoms += delta;
+	if (RIGHT_OK && BOARD(i, j+1).player == player) BOARD(i, j+1).group->freedoms += delta;
+	if (DOWN_OK  && BOARD(i+1, j).player == player) BOARD(i+1, j).group->freedoms += delta;
+
+	return;
+}
+
+// Removes all of a group's stones from the board
+// Caller must destroy gp afterwards
+void group_kill_stones(dot* board, group* gp) {
+	int i;
+	int j;
+	dot* gp0 = gp->anchor;
+	color enemy = (gp0->player == BLACK) ? WHITE : BLACK;
+	dot* stone = gp0;
+	dot* tmp_next;
+	do {
+		tmp_next = stone->next;
+
+		i = stone->index / SIZE;
+		j = stone->index % SIZE;
+		change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);
+
+		stone->player = EMPTY;
+		stone->group = NULL;
+		stone->prev = NULL;
+		stone->next = NULL;
+	} while (tmp_next != gp0);
+}
+
 move* move_create() {
 	void* p;
 	if (!(p = malloc(sizeof(move)))) {
@@ -207,23 +246,16 @@ bool go_move_legal(state* st, move* mv) {
 	return false;
 }
 
-// Assumes (i, j) are valid coordinates
-void decrement_neighbor_enemy_freedom(dot* board, color enemy, int i, int j) {
-	if (BOARD(i, j).player == enemy) {
-		--BOARD(i, j).group->freedoms;
-	}
-}
-
-void check_neighbor_enemy_dead(dot* board, color enemy, int i, int j) {
+// Destroys enemy group at (i, j) if dead
+bool remove_dead_neighbor_enemy(dot* board, color enemy, int i, int j) {
 	if ( (BOARD(i, j).player == enemy) && (BOARD(i, j).group->freedoms == 0)) {
-		// Kill group
+		group* gp = BOARD(i, j).group;
+		group_kill_stones(board, gp);
+		group_destroy(gp);
+		return true;
 	}
+	return false;
 }
-
-#define UP_OK i >= 1
-#define LEFT_OK j >= 1
-#define RIGHT_OK j <= SIZE-2
-#define DOWN_OK i <= SIZE-2
 
 bool go_move_play(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
@@ -238,15 +270,14 @@ bool go_move_play(state* st, move* mv_ptr) {
 	// Decrease every enemy neighbor's group's freedom by 1 (may decrement more than once)
 	// Check each enemy neighbor for deadness
 	// If no dead, continue
-	if (UP_OK)    decrement_neighbor_enemy_freedom(b, enemy, i-1, j);
-	if (LEFT_OK)  decrement_neighbor_enemy_freedom(b, enemy, i, j-1);
-	if (RIGHT_OK) decrement_neighbor_enemy_freedom(b, enemy, i, j+1);
-	if (DOWN_OK)  decrement_neighbor_enemy_freedom(b, enemy, i+1, j);
+	change_neighbors_freedoms_if_specific_color(b, enemy, i, j, -1);
 
-	if (UP_OK)    check_neighbor_enemy_dead(b, enemy, i-1, j);
-	if (LEFT_OK)  check_neighbor_enemy_dead(b, enemy, i, j-1);
-	if (RIGHT_OK) check_neighbor_enemy_dead(b, enemy, i, j+1);
-	if (DOWN_OK)  check_neighbor_enemy_dead(b, enemy, i+1, j);
+	// If dead enemy, kill group
+	bool enemy_killed = false;
+	if (UP_OK)    enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i-1, j);
+	if (LEFT_OK)  enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i, j-1);
+	if (RIGHT_OK) enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i, j+1);
+	if (DOWN_OK)  enemy_killed = enemy_killed || remove_dead_neighbor_enemy(b, enemy, i+1, j);
 
 	b[mv].player = st->nextPlayer;
 	st->nextPlayer = enemy;
