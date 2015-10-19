@@ -12,6 +12,16 @@ state* state_create() {
 	}
 	state* st = (state*) p;
 	st->nextPlayer = BLACK;
+
+	int i;
+	dot* b = st->board;
+	for (i = 0; i < COUNT; ++i) {
+		b[i].index = i;
+		b[i].player = EMPTY;
+		b[i].group = NULL;
+		b[i].prev = NULL;
+		b[i].next = NULL;
+	}
 	return st;
 }
 

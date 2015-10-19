@@ -25,6 +25,7 @@ typedef struct group {
 
 // Dots are sometimes called "stone"s when they're not empty
 typedef struct dot {
+	int index;		// Location
 	color player;
 	struct group* group;
 	struct dot* prev;	// Prev in group
