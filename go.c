@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <wchar.h>
 #include "go.h"
 #include "utils.h"
 
@@ -129,13 +130,13 @@ void state_score(state* st, float* score) {
 	}
 }
 
-char color_char(color player) {
+wchar_t color_char(color player) {
 	if (player == BLACK) {
-		return 'X';
+		return L'●';
 	} else if (player == WHITE) {
-		return 'O';
+		return L'◯';
 	} else {
-		return '.';
+		return L'.';
 	}
 }
 
@@ -156,26 +157,26 @@ void state_print(state* st) {
 	int* prisoners = st->prisoners;
 	dot* board = st->board;
 
-	printf("   ");
+	wprintf(L"   ");
 	for (i = 0; i < SIZE; ++i) {
-		printf("%c ", int_char(i));
+		wprintf(L"%c ", int_char(i));
 	}
-	printf("\n   ");
+	wprintf(L"\n   ");
 	for (i = 0; i < SIZE; ++i) {
-		printf("  ");
+		wprintf(L"  ");
 	}
-	printf("(%d%c%c  %d%c%c)",
-		prisoners[BLACK], color_char(BLACK), (nextPlayer != BLACK ? '*' : ' '),
-		prisoners[WHITE], color_char(WHITE), (nextPlayer != WHITE ? '*' : ' '));
+	wprintf(L"(%lc %d%c  %lc %d%c)",
+		color_char(BLACK), prisoners[BLACK], (nextPlayer == BLACK ? '*' : ' '),
+		color_char(WHITE), prisoners[WHITE], (nextPlayer == WHITE ? '*' : ' '));
 	for (i = 0; i < SIZE; ++i) {
-		printf("\n%c  ", int_char(i));
+		wprintf(L"\n%c  ", int_char(i));
 		for (j = 0; j < SIZE; ++j) {
-			printf("%c ", color_char(BOARD(i, j).player));
+			wprintf(L"%lc ", color_char(BOARD(i, j).player));
 		}
 	}
 	float score[3];
 	state_score(st, score);
-	printf("\n\nScore: (%.1fx  %.1fo)\n", score[BLACK], score[WHITE]);
+	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f)\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE]);
 }
 
 group* group_create(dot* anchor, int freedoms) {
@@ -326,7 +327,7 @@ bool move_parse(move* mv, char str[2]) {
 void move_print(move* mv) {
 	int i = *mv/SIZE;
 	int j = *mv%SIZE;
-	printf("%c%c", int_char(i), int_char(j));
+	wprintf(L"%c%c", int_char(i), int_char(j));
 }
 
 void go_move_random(move* mv, state* st) {

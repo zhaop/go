@@ -56,6 +56,8 @@ void state_copy(state*, state*);
 
 void state_destroy(state*);
 
+wchar_t color_char(color);
+
 void state_print(state*);
 
 move* move_create();
