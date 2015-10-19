@@ -111,16 +111,16 @@ void group_destroy(group* gp) {
 	free(gp);
 }
 
-// Does not do freedom calculations
-// Only adds stone before anchor in circular doubly linked list
+// Stone must already exist on board
 // Assumes linked list never empty
-void group_add_stone(group* gp, dot* stone) {
+void group_add_stone(group* gp, dot* stone, int liberties) {
 	dot* anchor = gp->anchor;
 	stone->prev = anchor->prev;
 	stone->next = anchor;
 	anchor->prev->next = stone;
 	anchor->prev = stone;
 	++gp->length;
+	gp->freedoms += liberties;
 }
 
 // Merges b into a
