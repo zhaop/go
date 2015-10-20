@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#define SIZE 5
+#define SIZE 9
 #define COUNT SIZE*SIZE
 
 #define KOMI 6.5

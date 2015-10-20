@@ -130,13 +130,35 @@ void state_score(state* st, float* score) {
 	}
 }
 
+bool is_star_point(int i, int j) {
+	switch (SIZE) {
+		case 9 :
+			return ((i == 2) || (i == 4) || (i == 6)) && ((j == 2) || (j == 4) || (j == 6));
+			break;
+		case 13 :
+			return ((i == 3) || (i == 6) || (i == 9)) && ((j == 3) || (j == 6) || (j == 9));
+			break;
+		case 19 :
+			return ((i == 3) || (i == 9) || (i == 15)) && ((j == 3) || (j == 9) || (j == 15));
+			break;
+	}
+}
+
 wchar_t color_char(color player) {
 	if (player == BLACK) {
 		return L'●';
 	} else if (player == WHITE) {
 		return L'◯';
 	} else {
-		return L'.';
+		return L'·';
+	}
+}
+
+wchar_t dot_char(int i, int j, color player) {
+	if ((player == EMPTY) && (is_star_point(i, j))) {
+		return L'•';
+	} else {
+		return color_char(player);
 	}
 }
 
@@ -171,7 +193,7 @@ void state_print(state* st) {
 	for (i = 0; i < SIZE; ++i) {
 		wprintf(L"\n%c  ", int_char(i));
 		for (j = 0; j < SIZE; ++j) {
-			wprintf(L"%lc ", color_char(BOARD(i, j).player));
+			wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
 		}
 	}
 	float score[3];
