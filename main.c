@@ -17,6 +17,7 @@ int main(/*int argc, char* argv[]*/) {
 
 	char mv_in[2];
 
+	bool is_legal;
 	bool result;
 	long double t0;
 	long double dt;
@@ -35,6 +36,11 @@ int main(/*int argc, char* argv[]*/) {
 			wprintf(L"Invalid input\n");
 			continue;
 		}
+
+		t0 = timer_now();
+		is_legal = go_move_legal(st, mv);
+		dt = timer_now() - t0;
+		wprintf(L"Move is %s [%.3Lf us]\n", (is_legal ? "legal" : "illegal"), dt*1e6);
 
 		t0 = timer_now();
 		result = go_move_play(st, mv);

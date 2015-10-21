@@ -366,19 +366,6 @@ void go_move_random(move* mv, state* st) {
 	*mv = tmp;
 }
 
-bool go_move_legal(state* st, move* mv) {
-	dot* b = st->board;
-
-	if (*mv > COUNT) {
-		return false;
-	}
-
-	if (b[*mv].player == EMPTY) {
-		return true;
-	}
-	return false;
-}
-
 // True if ko rule forbids move
 bool check_possible_ko(dot* board, int possibleKo, int i, int j) {
 	if (possibleKo == i*SIZE + j) {
@@ -388,15 +375,28 @@ bool check_possible_ko(dot* board, int possibleKo, int i, int j) {
 	return false;
 }
 
+bool is_neighbor_enemy_dead(dot* board, color enemy, int i, int j) {
+	return (BOARD(i, j).player == enemy) && (BOARD(i, j).group->freedoms == 0);
+}
+
 // Destroys enemy group at (i, j) if dead, return number captured
 int remove_dead_neighbor_enemy(dot* board, color enemy, int i, int j) {
-	if ( (BOARD(i, j).player == enemy) && (BOARD(i, j).group->freedoms == 0)) {
+	if (is_neighbor_enemy_dead(board, enemy, i, j)) {
 		group* gp = BOARD(i, j).group;
 		int captured = group_kill_stones(board, gp);
 		group_destroy(gp);
 		return captured;
 	}
 	return 0;
+}
+
+int count_liberties(dot* board, int i, int j) {
+	int liberties = 0;
+	if (UP_OK    && BOARD(i-1, j).player == EMPTY) ++liberties;
+	if (LEFT_OK  && BOARD(i, j-1).player == EMPTY) ++liberties;
+	if (RIGHT_OK && BOARD(i, j+1).player == EMPTY) ++liberties;
+	if (DOWN_OK  && BOARD(i+1, j).player == EMPTY) ++liberties;
+	return liberties;
 }
 
 bool has_living_friendlies(dot* board, color friendly, int i, int j) {
@@ -468,6 +468,69 @@ void merge_with_every_friendly(dot* board, color friendly, int i, int j, int lib
 	}*/
 }
 
+// State is unchanged at the end (but it can change during execution)
+bool go_move_legal(state* st, move* mv_ptr) {
+	move mv = *mv_ptr;
+	dot* board = st->board;
+	color friendly = st->nextPlayer;
+	color enemy = (friendly == BLACK) ? WHITE : BLACK;
+
+	if (mv < 0 || mv >= COUNT) {
+		return false;
+	}
+
+	int i = mv / SIZE;
+	int j = mv % SIZE;
+
+	if (BOARD(i, j).player != EMPTY) {
+		return false;
+	}
+
+	// Check for simple ko
+	if (st->possibleKo != NO_POSSIBLE_KO) {
+		bool ko_rule_applies =
+			   (UP_OK    && check_possible_ko(board, st->possibleKo, i-1, j))
+			|| (LEFT_OK  && check_possible_ko(board, st->possibleKo, i, j-1))
+			|| (RIGHT_OK && check_possible_ko(board, st->possibleKo, i, j+1))
+			|| (DOWN_OK  && check_possible_ko(board, st->possibleKo, i+1, j));
+
+		if (ko_rule_applies) {
+			return false;
+		}
+	}
+
+	// If enemy killed, move is legal
+	change_neighbors_freedoms_if_specific_color(board, enemy, i, j, -1);
+
+	bool enemy_died = false;
+	if      (UP_OK    && is_neighbor_enemy_dead(board, enemy, i-1, j)) enemy_died = true;
+	else if (LEFT_OK  && is_neighbor_enemy_dead(board, enemy, i, j-1)) enemy_died = true;
+	else if (RIGHT_OK && is_neighbor_enemy_dead(board, enemy, i, j+1)) enemy_died = true;
+	else if (DOWN_OK  && is_neighbor_enemy_dead(board, enemy, i+1, j)) enemy_died = true;
+
+	change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);
+	if (enemy_died) {
+		return true;
+	}
+
+	// If has liberty, move is legal
+	if (UP_OK    && BOARD(i-1, j).player == EMPTY) return true;
+	if (LEFT_OK  && BOARD(i, j-1).player == EMPTY) return true;
+	if (RIGHT_OK && BOARD(i, j+1).player == EMPTY) return true;
+	if (DOWN_OK  && BOARD(i+1, j).player == EMPTY) return true;
+
+	// Look for living friendly neighbors
+	change_neighbors_freedoms_if_specific_color(board, friendly, i, j, -1);
+	if (has_living_friendlies(board, friendly, i, j)) {
+		change_neighbors_freedoms_if_specific_color(board, friendly, i, j, +1);
+		return true;
+	}
+
+	// No living friendly neighbors
+	change_neighbors_freedoms_if_specific_color(board, friendly, i, j, +1);
+	return false;
+}
+
 bool go_move_play(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	dot* board = st->board;
@@ -516,11 +579,7 @@ bool go_move_play(state* st, move* mv_ptr) {
 	}
 
 	// Count own liberties
-	int liberties = 0;
-	if (UP_OK    && BOARD(i-1, j).player == EMPTY) ++liberties;
-	if (LEFT_OK  && BOARD(i, j-1).player == EMPTY) ++liberties;
-	if (RIGHT_OK && BOARD(i, j+1).player == EMPTY) ++liberties;
-	if (DOWN_OK  && BOARD(i+1, j).player == EMPTY) ++liberties;
+	int liberties = count_liberties(board, i, j);
 
 	// Look for dead friendly neighbors
 	change_neighbors_freedoms_if_specific_color(board, friendly, i, j, -1);
