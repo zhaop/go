@@ -8,6 +8,7 @@
 int main(/*int argc, char* argv[]*/) {
 
 	setlocale(LC_ALL, "");
+	seed_rand_once();
 
 	state* st = state_create();
 	if (!st) return -1;

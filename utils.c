@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <time.h>
 #include "utils.h"
 
 /* Available clocks:
@@ -19,4 +20,8 @@ long double timer_now() {
 
 int randi(int a, int b) {
 	return rand() % (b - a) + a;
+}
+
+void seed_rand_once() {
+	srand(time(NULL));
 }
