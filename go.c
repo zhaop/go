@@ -196,9 +196,14 @@ void state_print(state* st) {
 			wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
 		}
 	}
+
 	float score[3];
+
+	double t0 = timer_now();
 	state_score(st, score);
-	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f)\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE]);
+	double dt = timer_now() - t0;
+
+	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f us]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt*1e6);
 }
 
 group* group_create(dot* anchor, int freedoms) {
