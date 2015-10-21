@@ -142,6 +142,7 @@ bool is_star_point(int i, int j) {
 			return ((i == 3) || (i == 9) || (i == 15)) && ((j == 3) || (j == 9) || (j == 15));
 			break;
 	}
+	return false;
 }
 
 wchar_t color_char(color player) {
