@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <wchar.h>
 #include "go.h"
-#include "timer.h"
+#include "utils.h"
 
 int main(/*int argc, char* argv[]*/) {
 
