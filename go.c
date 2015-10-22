@@ -173,6 +173,38 @@ char int_char(int n) {
 	}
 }
 
+group* group_create(dot* anchor, int freedoms) {
+	void* p;
+	if (!(p = malloc(sizeof(group)))) {
+		return NULL;
+	}
+	group* gp = (group*) p;
+	gp->anchor = anchor;
+	gp->length = 1;
+	gp->freedoms = freedoms;
+	return gp;
+}
+
+void group_destroy(group* gp) {
+	free(gp);
+}
+
+void group_print(group* gp) {
+	wchar_t str[3];
+	dot* anchor = gp->anchor;
+	move_sprint(str, &(anchor->index));
+	wprintf(L"Group %lc {anchor: %ls, length: %d, freedoms: %d, list: ", color_char(anchor->player), str, gp->length, gp->freedoms);
+
+	dot* stone = anchor;
+	do {
+		move_print(&(stone->index));
+		wprintf(L"->");
+		stone = stone->next;
+	} while (stone != anchor);
+
+	wprintf(L"}\n");
+}
+
 void state_print(state* st) {
 	int i;
 	int j;
@@ -205,22 +237,19 @@ void state_print(state* st) {
 	double dt = timer_now() - t0;
 
 	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f us]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt*1e6);
-}
 
-group* group_create(dot* anchor, int freedoms) {
-	void* p;
-	if (!(p = malloc(sizeof(group)))) {
-		return NULL;
+	// Debug info about groups
+	dot* stone;
+	t0 = timer_now();
+	for (i = 0; i < COUNT; ++i) {
+		stone = &board[i];
+		if (stone->group && stone->group->anchor == stone) {
+			group_print(stone->group);
+		}
 	}
-	group* gp = (group*) p;
-	gp->anchor = anchor;
-	gp->length = 1;
-	gp->freedoms = freedoms;
-	return gp;
-}
+	dt = timer_now() - t0;
 
-void group_destroy(group* gp) {
-	free(gp);
+	wprintf(L"Dumping groups took [%.3f us]\n", dt*1e6);
 }
 
 // Stone must already exist on board
@@ -262,10 +291,17 @@ group* group_merge_and_destroy_smaller(group* gp1, group* gp2) {
 		stone = stone->next;
 	} while (stone->next != b0);
 
-	a0->prev->next = b0->prev;
-	b0->prev->prev = a0->prev;
-	a0->prev = b0;
-	b0->next = a0;
+	// a0->prev->next = b0->prev;
+	// b0->prev->prev = a0->prev;
+	// a0->prev = b0;
+	// b0->next = a0;
+
+	dot* at = a0->prev;
+	dot* bt = b0->prev;
+	a0->prev = bt;
+	at->next = b0;
+	b0->prev = at;
+	bt->next = a0;
 
 	a->length += b->length;
 	a->freedoms += b->freedoms;
@@ -352,10 +388,17 @@ bool move_parse(move* mv, char str[2]) {
 	return true;
 }
 
-void move_print(move* mv) {
+// str must be a wchar_t[3]
+void move_sprint(wchar_t str[3], move* mv) {
 	int i = *mv/SIZE;
 	int j = *mv%SIZE;
-	wprintf(L"%c%c", int_char(i), int_char(j));
+	swprintf(str, 3, L"%c%c", int_char(i), int_char(j));
+}
+
+void move_print(move* mv) {
+	wchar_t str[3];
+	move_sprint(str, mv);
+	wprintf(str);
 }
 
 // Param move_list must be move[COUNT]

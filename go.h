@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#define SIZE 5
+#define SIZE 9
 #define COUNT SIZE*SIZE
 
 #define KOMI 6.5
@@ -65,6 +65,8 @@ move* move_create();
 void move_destroy(move*);
 
 bool move_parse(move*, char str[2]);
+
+void move_sprint(wchar_t str[3], move*);
 
 void move_print(move*);
 
