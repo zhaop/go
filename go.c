@@ -358,12 +358,47 @@ void move_print(move* mv) {
 	wprintf(L"%c%c", int_char(i), int_char(j));
 }
 
-void go_move_random(move* mv, state* st) {
+// Param move_list must be move[COUNT]
+// Returns number of possible moves
+int go_get_legal_moves(state* st, move* move_list) {
+	int num = 0;
+	move mv;
+	int i;
+	for (i = 0; i < COUNT; ++i) {
+		mv = i;
+		if (go_move_legal(st, &mv)) {
+			move_list[num] = mv;
+			++num;
+		}
+	}
+	return num;
+}
+
+// Plays a random move & stores it in mv
+bool go_move_play_random(state* st, move* mv, move* move_list) {
 	move tmp;
+	int timeout = COUNT / 2;	// Heuristics
+
 	do {
 		tmp = randi(0, COUNT);
-	} while (st->board[tmp].player != EMPTY);
-	*mv = tmp;
+	} while ((--timeout != 0) && !go_move_play(st, &tmp));
+
+	wprintf(L"Tried %d random moves\n", COUNT / 2 - timeout);
+
+	if (timeout != 0) {
+		*mv = tmp;
+		return true;
+	}
+
+	// Few moves remaining; look for them
+	wprintf(L"Random play timed out; going systematic\n");
+	int move_count = go_get_legal_moves(st, move_list);
+	if (move_count > 0) {
+		tmp = move_list[randi(0, move_count)];
+		return go_move_play(st, &tmp);
+	}
+
+	return false;
 }
 
 // True if ko rule forbids move
@@ -531,6 +566,7 @@ bool go_move_legal(state* st, move* mv_ptr) {
 	return false;
 }
 
+// FIXME A bug is in here somewhere; try a 9x9 game & play on diagonals only
 bool go_move_play(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	dot* board = st->board;

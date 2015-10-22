@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#define SIZE 9
+#define SIZE 5
 #define COUNT SIZE*SIZE
 
 #define KOMI 6.5
@@ -68,10 +68,10 @@ bool move_parse(move*, char str[2]);
 
 void move_print(move*);
 
-void go_move_random(move*, state*);
-
 bool go_move_legal(state*, move*);
 
 bool go_move_play(state*, move*);
+
+bool go_move_play_random(state*, move*, move*);
 
 #endif
