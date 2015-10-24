@@ -108,7 +108,7 @@ void count_territory(dot* board, bool* already_counted, int i, int j, territory*
 }
 
 // Score must be a float array[3]
-void state_score(state* st, float* score) {
+void state_score(state* st, float* score, bool chinese_rules) {
 	dot* board = st->board;
 
 	score[BLACK] = st->prisoners[BLACK];
@@ -125,6 +125,8 @@ void state_score(state* st, float* score) {
 				if (tr.player == BLACK || tr.player == WHITE) {
 					score[tr.player] += tr.area;
 				}
+			} else if (chinese_rules && BOARD(i, j).player != EMPTY) {
+				++score[BOARD(i, j).player];
 			}
 		}
 	}
@@ -233,7 +235,7 @@ void state_print(state* st) {
 	float score[3];
 
 	double t0 = timer_now();
-	state_score(st, score);
+	state_score(st, score, false);
 	double dt = timer_now() - t0;
 
 	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f us]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt*1e6);
