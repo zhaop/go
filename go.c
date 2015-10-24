@@ -238,7 +238,15 @@ void state_print(state* st) {
 
 	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f us]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt*1e6);
 
-	// Debug info about groups
+	// Debug info about groups & ko
+	/*if (st->possibleKo != NO_POSSIBLE_KO) {
+		wprintf(L"Possible ko if ");
+		move_print(&st->possibleKo);
+		wprintf(L" captured\n");
+	} else {
+		wprintf(L"No possible ko\n");
+	}
+
 	dot* stone;
 	t0 = timer_now();
 	for (i = 0; i < COUNT; ++i) {
@@ -248,8 +256,7 @@ void state_print(state* st) {
 		}
 	}
 	dt = timer_now() - t0;
-
-	wprintf(L"Dumping groups took [%.3f us]\n", dt*1e6);
+	wprintf(L"Dumping groups took [%.3f us]\n", dt*1e6);*/
 }
 
 // Stone must already exist on board
