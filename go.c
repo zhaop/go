@@ -412,7 +412,7 @@ void move_print(move* mv) {
 
 // Param move_list must be move[COUNT]
 // Returns number of possible moves
-int go_get_legal_moves(state* st, move* move_list) {
+int go_get_legal_plays(state* st, move* move_list) {
 	int num = 0;
 	move mv;
 	int i;
@@ -446,7 +446,7 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 
 	// Few moves remaining; look for them
 	wprintf(L"Random play timed out; going systematic\n");
-	int move_count = go_get_legal_moves(st, move_list);
+	int move_count = go_get_legal_plays(st, move_list);
 	if (move_count > 0) {
 		tmp = move_list[randi(0, move_count)];
 		return go_move_play(st, &tmp);
