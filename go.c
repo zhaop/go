@@ -425,19 +425,21 @@ int go_get_legal_moves(state* st, move* move_list) {
 }
 
 // Plays a random move & stores it in mv
-bool go_move_play_random(state* st, move* mv, move* move_list) {
+play_result go_move_play_random(state* st, move* mv, move* move_list) {
 	move tmp;
 	int timeout = COUNT / 2;	// Heuristics
+	int rand_searches = 0;
 
 	do {
 		tmp = randi(0, COUNT);
-	} while ((--timeout != 0) && !go_move_play(st, &tmp));
+		rand_searches++;
+	} while ((rand_searches < timeout) && (go_move_play(st, &tmp) != SUCCESS));
 
-	wprintf(L"Tried %d random moves\n", COUNT / 2 - timeout);
+	wprintf(L"Tried %d random moves\n", rand_searches);
 
-	if (timeout != 0) {
+	if (rand_searches < timeout) {
 		*mv = tmp;
-		return true;
+		return SUCCESS;
 	}
 
 	// Few moves remaining; look for them
@@ -448,7 +450,7 @@ bool go_move_play_random(state* st, move* mv, move* move_list) {
 		return go_move_play(st, &tmp);
 	}
 
-	return false;
+	return FAIL_OTHER;
 }
 
 // True if ko rule forbids move
@@ -617,21 +619,21 @@ bool go_move_legal(state* st, move* mv_ptr) {
 }
 
 // FIXME A bug is in here somewhere; try a 9x9 game & play on diagonals only
-bool go_move_play(state* st, move* mv_ptr) {
+play_result go_move_play(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	dot* board = st->board;
 	color friendly = st->nextPlayer;
 	color enemy = (friendly == BLACK) ? WHITE : BLACK;
 
 	if (mv < 0 || mv >= COUNT) {
-		return false;
+		return FAIL_BOUNDS;
 	}
 
 	int i = mv / SIZE;
 	int j = mv % SIZE;
 
 	if (BOARD(i, j).player != EMPTY) {
-		return false;
+		return FAIL_OCCUPIED;
 	}
 
 	// Check for simple ko
@@ -643,7 +645,7 @@ bool go_move_play(state* st, move* mv_ptr) {
 			|| (DOWN_OK  && check_possible_ko(board, st->possibleKo, i+1, j));
 
 		if (ko_rule_applies) {
-			return false;
+			return FAIL_KO;
 		}
 	}
 
@@ -676,7 +678,7 @@ bool go_move_play(state* st, move* mv_ptr) {
 		if (liberties == 0) {
 			change_neighbors_freedoms_if_specific_color(board, friendly, i, j, +1);
 			change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);
-			return false;	// Illegal
+			return FAIL_SUICIDE;	// Illegal
 		} else if (!has_dying_friendlies(board, friendly, i, j)) {
 			create_lone_group(&BOARD(i, j), friendly, liberties);
 			merge_with_friendlies = false;
@@ -690,5 +692,5 @@ bool go_move_play(state* st, move* mv_ptr) {
 	st->prisoners[st->nextPlayer] += captured;
 	st->nextPlayer = enemy;
 
-	return true;
+	return SUCCESS;
 }

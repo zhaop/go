@@ -6,7 +6,7 @@
 #include "utils.h"
 
 // Have bot play one move given current state
-bool bot_play(state* st, move* mv) {
+play_result bot_play(state* st, move* mv) {
 	move move_list[COUNT];
 	return go_move_play_random(st, mv, move_list);
 }
@@ -27,7 +27,8 @@ int main(/*int argc, char* argv[]*/) {
 	color human_player = BLACK;
 
 	bool is_legal;
-	bool result;
+	bool is_parse_valid;
+	play_result result;
 	long double t0;
 	long double dt;
 	long double t_think;
@@ -38,11 +39,11 @@ int main(/*int argc, char* argv[]*/) {
 
 			t0 = timer_now();
 			scanf("%s", mv_in);
-			result = move_parse(mv, mv_in);
+			is_parse_valid = move_parse(mv, mv_in);
 			dt = timer_now() - t0;
 			t_think = dt;
 
-			if (!result) {
+			if (!is_parse_valid) {
 				wprintf(L"Invalid input\n");
 				continue;
 			}
@@ -56,8 +57,26 @@ int main(/*int argc, char* argv[]*/) {
 			result = go_move_play(st, mv);
 			dt = timer_now() - t0;
 
-			if (!result) {
-				wprintf(L"Invalid move\n");
+			if (result != SUCCESS) {
+				wprintf(L"Invalid move: ");
+				switch (result) {
+					case FAIL_BOUNDS:
+						wprintf(L"Out of bounds\n");
+						break;
+					case FAIL_OCCUPIED:
+						wprintf(L"Occupied\n");
+						break;
+					case FAIL_KO:
+						wprintf(L"Ko\n");
+						break;
+					case FAIL_SUICIDE:
+						wprintf(L"Suicide\n");
+						break;
+					case FAIL_OTHER:
+					default:
+						wprintf(L"Other\n");
+						break;
+				}
 				continue;
 			}
 
@@ -75,7 +94,7 @@ int main(/*int argc, char* argv[]*/) {
 			move_print(mv);
 			wprintf(L"\n");
 
-			if (!result) {
+			if (result != SUCCESS) {
 				wprintf(L"Randy has no more moves [%.2Lf us]\n", dt*1e6);
 				return 0;
 			}

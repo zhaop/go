@@ -18,6 +18,8 @@ state { color nextPlayer , dot[] board }
 
 typedef enum { EMPTY, BLACK, WHITE, NEUTRAL } color;
 
+typedef enum { SUCCESS, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_KO, FAIL_SUICIDE, FAIL_OTHER } play_result;
+
 struct group;
 struct dot;
 
@@ -72,8 +74,8 @@ void move_print(move*);
 
 bool go_move_legal(state*, move*);
 
-bool go_move_play(state*, move*);
+play_result go_move_play(state*, move*);
 
-bool go_move_play_random(state*, move*, move*);
+play_result go_move_play_random(state*, move*, move*);
 
 #endif
