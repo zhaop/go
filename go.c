@@ -296,7 +296,7 @@ group* group_merge_and_destroy_smaller(group* gp1, group* gp2) {
 	do {
 		stone->group = a;
 		stone = stone->next;
-	} while (stone->next != b0);
+	} while (stone != b0);
 
 	// a0->prev->next = b0->prev;
 	// b0->prev->prev = a0->prev;
