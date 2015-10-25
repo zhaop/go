@@ -54,15 +54,18 @@ typedef struct {
 
 typedef int move;
 
+
+wchar_t color_char(color);
+
+
 state* state_create();
 
 void state_copy(state*, state*);
 
 void state_destroy(state*);
 
-wchar_t color_char(color);
-
 void state_print(state*);
+
 
 move* move_create();
 
@@ -73,6 +76,7 @@ bool move_parse(move*, char str[2]);
 void move_sprint(wchar_t str[3], move*);
 
 void move_print(move*);
+
 
 bool go_move_legal(state*, move*);
 
