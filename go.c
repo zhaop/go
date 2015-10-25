@@ -117,6 +117,10 @@ void state_score(state* st, float* score, bool chinese_rules) {
 	bool already_counted[COUNT];
 	int i;
 	int j;
+	for (i = 0; i < COUNT; ++i) {
+		already_counted[i] = false;
+	}
+
 	for (i = 0; i < SIZE; ++i) {
 		for (j = 0; j < SIZE; ++j) {
 			if (!already_counted[i*SIZE+j] && BOARD(i, j).player == EMPTY) {
