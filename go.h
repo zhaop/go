@@ -80,4 +80,6 @@ play_result go_move_play(state*, move*);
 
 play_result go_move_play_random(state*, move*, move*);
 
+bool go_is_game_over(state*);
+
 #endif

@@ -733,3 +733,7 @@ play_result go_move_play(state* st, move* mv_ptr) {
 
 	return SUCCESS;
 }
+
+bool go_is_game_over(state* st) {
+	return (st->passes == 2);
+}
