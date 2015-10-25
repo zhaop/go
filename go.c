@@ -14,6 +14,7 @@ state* state_create() {
 	state* st = (state*) p;
 	st->nextPlayer = BLACK;
 	st->possibleKo = NO_POSSIBLE_KO;
+	st->passes = 0;
 
 	int i;
 	dot* b = st->board;
@@ -31,6 +32,7 @@ state* state_create() {
 void state_copy(state* st0, state* st1) {
 	st1->nextPlayer = st0->nextPlayer;
 	st1->possibleKo = st0->possibleKo;
+	st1->passes = st0->passes;
 
 	st1->prisoners[1] = st0->prisoners[1];
 	st1->prisoners[2] = st0->prisoners[2];
@@ -215,6 +217,7 @@ void state_print(state* st) {
 	int i;
 	int j;
 	color nextPlayer = st->nextPlayer;
+	color enemy = (st->nextPlayer == BLACK) ? WHITE : BLACK;
 	int* prisoners = st->prisoners;
 	dot* board = st->board;
 
@@ -229,6 +232,11 @@ void state_print(state* st) {
 	wprintf(L"(%lc %d%c  %lc %d%c)",
 		color_char(BLACK), prisoners[BLACK], (nextPlayer == BLACK ? '*' : ' '),
 		color_char(WHITE), prisoners[WHITE], (nextPlayer == WHITE ? '*' : ' '));
+	if (st->passes == 1) {
+		wprintf(L" (%lc passed)", color_char(enemy));
+	} else if (st->passes == 2) {
+		wprintf(L" (game ended)");
+	}
 	for (i = 0; i < SIZE; ++i) {
 		wprintf(L"\n%c  ", int_char(i));
 		for (j = 0; j < SIZE; ++j) {
@@ -376,8 +384,14 @@ void move_destroy(move* mv) {
 
 // Returns whether move correctly parsed
 bool move_parse(move* mv, char str[2]) {
+	if (str[0] == '-' && str[1] == '-') {
+		*mv = MOVE_PASS;
+		return true;
+	}
+
 	int i = -1;
 	int j = -1;
+
 	if (str[0] >= 'a' && str[0] <= 'z') {
 		i = str[0] - 'a' + 10;
 	} else if (str[0] >= 'A' && str[0] <= 'z') {
@@ -403,6 +417,11 @@ bool move_parse(move* mv, char str[2]) {
 
 // str must be a wchar_t[3]
 void move_sprint(wchar_t str[3], move* mv) {
+	if (*mv == MOVE_PASS) {
+		swprintf(str, 3, L"--");
+		return;
+	}
+
 	int i = *mv/SIZE;
 	int j = *mv%SIZE;
 	swprintf(str, 3, L"%c%c", int_char(i), int_char(j));
@@ -568,6 +587,10 @@ bool go_move_legal(state* st, move* mv_ptr) {
 	color friendly = st->nextPlayer;
 	color enemy = (friendly == BLACK) ? WHITE : BLACK;
 
+	if (mv == MOVE_PASS) {
+		return true;
+	}
+
 	if (mv < 0 || mv >= COUNT) {
 		return false;
 	}
@@ -624,12 +647,22 @@ bool go_move_legal(state* st, move* mv_ptr) {
 	return false;
 }
 
-// FIXME A bug is in here somewhere; try a 9x9 game & play on diagonals only
 play_result go_move_play(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	dot* board = st->board;
 	color friendly = st->nextPlayer;
 	color enemy = (friendly == BLACK) ? WHITE : BLACK;
+
+	if (st->passes == 2) {
+		return FAIL_GAME_ENDED;
+	}
+
+	if (mv == MOVE_PASS) {
+		st->nextPlayer = enemy;
+		++st->passes;
+		return SUCCESS;
+	}
+	st->passes = 0;
 
 	if (mv < 0 || mv >= COUNT) {
 		return FAIL_BOUNDS;

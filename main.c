@@ -60,6 +60,9 @@ int main(/*int argc, char* argv[]*/) {
 			if (result != SUCCESS) {
 				wprintf(L"Invalid move: ");
 				switch (result) {
+					case FAIL_GAME_ENDED:
+						wprintf(L"Game ended\n");
+						break;
 					case FAIL_BOUNDS:
 						wprintf(L"Out of bounds\n");
 						break;

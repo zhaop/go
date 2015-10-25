@@ -9,6 +9,7 @@
 #define KOMI 6.5
 
 #define NO_POSSIBLE_KO -1
+#define MOVE_PASS -1
 
 /*
 group { dot* anchor , int length, int freedoms }
@@ -18,7 +19,7 @@ state { color nextPlayer , dot[] board }
 
 typedef enum { EMPTY, BLACK, WHITE, NEUTRAL } color;
 
-typedef enum { SUCCESS, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_KO, FAIL_SUICIDE, FAIL_OTHER } play_result;
+typedef enum { SUCCESS, FAIL_GAME_ENDED, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_KO, FAIL_SUICIDE, FAIL_OTHER } play_result;
 
 struct group;
 struct dot;
@@ -42,6 +43,7 @@ typedef struct {
 	color nextPlayer;
 	int prisoners[3];
 	int possibleKo;		// Board index or NO_POSSIBLE_KO
+	int passes;		// Consecutive passes (when 2, game is over)
 	dot board[COUNT];
 } state;
 
