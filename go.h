@@ -6,31 +6,46 @@
 #define SIZE 9
 #define COUNT SIZE*SIZE
 
+#define NGROUPS COUNT/2
+
 #define KOMI 6.5
 
 #define NO_POSSIBLE_KO -1
 #define MOVE_PASS -1
 
+#define ADDR_NULL -1
+
 typedef enum { EMPTY, BLACK, WHITE, NEUTRAL } color;
 
 typedef enum { SUCCESS, FAIL_GAME_ENDED, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_KO, FAIL_SUICIDE, FAIL_OTHER } play_result;
+
+typedef int addr;
 
 struct group;
 struct dot;
 
 typedef struct group {
-	struct dot* anchor;
+	addr pool_prev;
+	addr pool_next;
+
+	addr anchor;
 	int length;
 	int freedoms;
 } group;
 
+typedef struct group_pool {
+	group mem[NGROUPS];
+	addr head_free;
+	addr head_used;
+} group_pool;
+
 // Dots are sometimes called "stone"s when they're not empty
 typedef struct dot {
-	int index;		// Location
+	addr index;		// Location
 	color player;
-	struct group* group;
-	struct dot* prev;	// Prev in group
-	struct dot* next;	// Next in group
+	addr group;
+	addr prev;	// Prev in group
+	addr next;	// Next in group
 } dot;
 
 typedef struct {
@@ -39,6 +54,7 @@ typedef struct {
 	int possibleKo;		// Board index or NO_POSSIBLE_KO
 	int passes;		// Consecutive passes (when 2, game is over)
 	dot board[COUNT];
+	group_pool groups;
 } state;
 
 typedef struct {
