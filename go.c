@@ -476,10 +476,18 @@ void move_print(move* mv) {
 	wprintf(str);
 }
 
-// Param move_list must be move[COUNT]
+// Param move_list must be move[COUNT+1]
 // Returns number of possible moves
 int go_get_legal_plays(state* st, move* move_list) {
 	int num = 0;
+
+	if (go_is_game_over(st)) {
+		return 0;
+	}
+
+	move_list[num] = MOVE_PASS;
+	++num;
+
 	move mv;
 	for (int i = 0; i < COUNT; ++i) {
 		mv = i;
@@ -498,7 +506,7 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 	int rand_searches = 0;
 
 	do {
-		tmp = randi(0, COUNT);
+		tmp = randi(-1, COUNT);
 		rand_searches++;
 	} while ((rand_searches < timeout) && (go_move_play(st, &tmp) != SUCCESS));
 
@@ -628,6 +636,10 @@ bool go_move_legal(state* st, move* mv_ptr) {
 	dot* board = st->board;
 	color friendly = st->nextPlayer;
 	color enemy = (friendly == BLACK) ? WHITE : BLACK;
+
+	if (st->passes >= 2) {
+		return false;
+	}
 
 	if (mv == MOVE_PASS) {
 		return true;
