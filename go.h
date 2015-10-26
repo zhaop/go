@@ -62,9 +62,18 @@ state* state_create();
 
 void state_copy(state*, state*);
 
+void state_destroy_children(state*);
+
 void state_destroy(state*);
 
 void state_print(state*);
+
+void state_score(state*, float score[3], bool);
+
+
+group* group_create(dot*, int);
+
+void group_destroy(group*);
 
 
 move* move_create();
@@ -79,6 +88,8 @@ void move_print(move*);
 
 
 bool go_move_legal(state*, move*);
+
+int go_get_legal_plays(state*, move move_list[COUNT+1]);
 
 play_result go_move_play(state*, move*);
 
