@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <wchar.h>
 #include "go.h"
 #include "utils.h"
@@ -160,9 +161,7 @@ void state_score(state* st, float* score, bool chinese_rules) {
 	bool already_counted[COUNT];
 	int i;
 	int j;
-	for (i = 0; i < COUNT; ++i) {
-		already_counted[i] = false;
-	}
+	memset(already_counted, (int) false, sizeof(bool) * COUNT);
 
 	for (i = 0; i < SIZE; ++i) {
 		for (j = 0; j < SIZE; ++j) {
