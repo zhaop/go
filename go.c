@@ -30,7 +30,7 @@ state* state_create() {
 	return st;
 }
 
-// Copy st0 --> st1
+// Deep copy st0 --> st1
 void state_copy(state* st0, state* st1) {
 	st1->nextPlayer = st0->nextPlayer;
 	st1->possibleKo = st0->possibleKo;
@@ -45,10 +45,50 @@ void state_copy(state* st0, state* st1) {
 	int i;
 	for (i = 0; i < COUNT; ++i) {
 		b1[i] = b0[i];
+		if (b0[i].player != EMPTY) {
+			b1[i].prev = &b1[b0[i].prev->index];
+			b1[i].next = &b1[b0[i].next->index];
+		}
+	}
+	for (i = 0; i < COUNT; ++i) {
+		if (b0[i].group && (&b0[i] == b0[i].group->anchor)) {
+			b1[i].group = group_create(&b1[i], b0[i].group->freedoms);
+			if (b1[i].group == NULL) {
+				// TODO Manage edge case
+			}
+
+			group* gp = b1[i].group;
+			dot* anchor = gp->anchor;
+			dot* stone = anchor;
+			do {
+				stone->group = gp;
+				stone = stone->next;
+			} while (stone != anchor);
+		}
+	}
+}
+
+void state_destroy_children(state* st) {
+	dot* board = st->board;
+	group* group_list[COUNT/2];
+	int group_count = 0;
+	int i;
+	for (i = 0; i < COUNT; ++i) {
+		if (board[i].player != EMPTY) {
+			if (board[i].group->anchor == &board[i]) {
+				group_list[group_count] = board[i].group;
+				++group_count;
+			}
+		}
+	}
+
+	for (i = 0; i < group_count; ++i) {
+		group_destroy(group_list[i]);
 	}
 }
 
 void state_destroy(state* st) {
+	state_destroy_children(st);
 	free(st);
 }
 
