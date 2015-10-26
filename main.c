@@ -35,6 +35,10 @@ int main(/*int argc, char* argv[]*/) {
 	while (1) {
 		if (st->nextPlayer == human_player) {
 			state_print(st);
+			if (go_is_game_over(st)) {
+				break;
+			}
+
 			wprintf(L"Your move: %lc ", color_char(st->nextPlayer));
 
 			t0 = timer_now();
@@ -88,12 +92,15 @@ int main(/*int argc, char* argv[]*/) {
 			wprintf(L" (%.2Lf s thinking, %.2Lf us playing)\n", t_think, dt*1e6);
 		} else {
 			state_print(st);
-			wprintf(L"Randy's move: %lc ", color_char(st->nextPlayer));
+			if (go_is_game_over(st)) {
+				break;
+			}
 
 			t0 = timer_now();
 			result = bot_play(st, mv);
 			dt = timer_now() - t0;
 
+			wprintf(L"Randy's move: %lc ", color_char(st->nextPlayer));
 			move_print(mv);
 			wprintf(L"\n");
 
@@ -107,6 +114,12 @@ int main(/*int argc, char* argv[]*/) {
 			wprintf(L" [%.2Lf us]\n", dt*1e6);
 		}
 	}
+
+	float final_score[3];
+	state_score(st, final_score, false);
+	color winner = (final_score[BLACK] > final_score[WHITE]) ? BLACK : WHITE;
+	color loser = (winner == BLACK) ? WHITE : BLACK;
+	wprintf(L"Game over: %lc wins by %.1f points.\n", color_char(winner), final_score[winner] - final_score[loser]);
 
 	return 0;
 }
