@@ -368,6 +368,8 @@ group* group_merge_and_destroy_smaller(group* gp1, group* gp2) {
 	a->length += b->length;
 	a->freedoms += b->freedoms;
 
+	free(b);
+
 	return a;
 }
 
