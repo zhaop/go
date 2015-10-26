@@ -6,8 +6,8 @@
 #include "utils.h"
 
 // Have bot play one move given current state
-play_result bot_play(state* st, move* mv) {
-	move move_list[COUNT];
+play_result randy_play(state* st, move* mv) {
+	move move_list[COUNT+1];
 	return go_move_play_random(st, mv, move_list);
 }
 
@@ -97,7 +97,7 @@ int main(/*int argc, char* argv[]*/) {
 			}
 
 			t0 = timer_now();
-			result = bot_play(st, mv);
+			result = randy_play(st, mv);
 			dt = timer_now() - t0;
 
 			wprintf(L"Randy's move: %lc ", color_char(st->nextPlayer));
