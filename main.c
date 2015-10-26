@@ -110,7 +110,7 @@ int main(/*int argc, char* argv[]*/) {
 
 	char mv_in[2];
 
-	color human_player = BLACK;
+	color human_player = WHITE;
 
 	bool is_legal;
 	bool is_parse_valid;
@@ -198,6 +198,8 @@ int main(/*int argc, char* argv[]*/) {
 			wprintf(L"%lc (Karl) played ", color_char((st->nextPlayer == BLACK) ? WHITE : BLACK));
 			move_print(mv);
 			wprintf(L" [%.2Lf ms]\n", dt*1e3);
+
+			return 42;
 		}
 	}
 

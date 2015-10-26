@@ -23,5 +23,6 @@ int randi(int a, int b) {
 }
 
 void seed_rand_once() {
-	srand(time(NULL));
+	// srand(time(NULL));
+	srand(42);
 }
