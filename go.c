@@ -462,7 +462,7 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 		rand_searches++;
 	} while ((rand_searches < timeout) && (go_move_play(st, &tmp) != SUCCESS));
 
-	wprintf(L"Tried %d random moves\n", rand_searches);
+	// wprintf(L"Tried %d random moves\n", rand_searches);
 
 	if (rand_searches < timeout) {
 		*mv = tmp;
@@ -470,7 +470,7 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 	}
 
 	// Few moves remaining; look for them
-	wprintf(L"Random play timed out; going systematic\n");
+	// wprintf(L"Random play timed out; going systematic\n");
 	int move_count = go_get_legal_plays(st, move_list);
 	if (move_count > 0) {
 		tmp = move_list[randi(0, move_count)];
