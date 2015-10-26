@@ -184,19 +184,19 @@ int main(/*int argc, char* argv[]*/) {
 			}
 
 			t0 = timer_now();
-			result = randy_play(st, mv);
+			result = karl_play(st, mv);
 			dt = timer_now() - t0;
 
-			wprintf(L"Randy's move: %lc ", color_char(st->nextPlayer));
+			wprintf(L"Karl's move: %lc ", color_char(st->nextPlayer));
 			move_print(mv);
 			wprintf(L"\n");
 
 			if (result != SUCCESS) {
-				wprintf(L"Randy has no more moves [%.2Lf us]\n", dt*1e6);
+				wprintf(L"Karl has no more moves [%.2Lf us]\n", dt*1e6);
 				return 0;
 			}
 
-			wprintf(L"%lc (Randy) played ", color_char((st->nextPlayer == BLACK) ? WHITE : BLACK));
+			wprintf(L"%lc (Karl) played ", color_char((st->nextPlayer == BLACK) ? WHITE : BLACK));
 			move_print(mv);
 			wprintf(L" [%.2Lf ms]\n", dt*1e3);
 		}
