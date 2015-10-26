@@ -18,9 +18,8 @@ state* state_create() {
 	st->possibleKo = NO_POSSIBLE_KO;
 	st->passes = 0;
 
-	int i;
 	dot* b = st->board;
-	for (i = 0; i < COUNT; ++i) {
+	for (int i = 0; i < COUNT; ++i) {
 		b[i].index = i;
 		b[i].player = EMPTY;
 		b[i].group = NULL;
@@ -480,8 +479,7 @@ void move_print(move* mv) {
 int go_get_legal_plays(state* st, move* move_list) {
 	int num = 0;
 	move mv;
-	int i;
-	for (i = 0; i < COUNT; ++i) {
+	for (int i = 0; i < COUNT; ++i) {
 		mv = i;
 		if (go_move_legal(st, &mv)) {
 			move_list[num] = mv;
