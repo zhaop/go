@@ -19,13 +19,13 @@ state* state_create() {
 	st->possibleKo = NO_POSSIBLE_KO;
 	st->passes = 0;
 
-	dot* b = st->board;
+	dot* board = st->board;
 	for (int i = 0; i < COUNT; ++i) {
-		b[i].index = i;
-		b[i].player = EMPTY;
-		b[i].group = NULL;
-		b[i].prev = NULL;
-		b[i].next = NULL;
+		board[i].index = i;
+		board[i].player = EMPTY;
+		board[i].group = NULL;
+		board[i].prev = NULL;
+		board[i].next = NULL;
 	}
 	return st;
 }
@@ -291,9 +291,12 @@ void state_print(state* st) {
 	double dt = timer_now() - t0;
 
 	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f us]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt*1e6);
+}
 
-	// Debug info about groups & ko
-	/*if (st->possibleKo != NO_POSSIBLE_KO) {
+// Debug info about groups & ko
+void state_print_debug(state* st) {
+	dot* board = st->board;
+	if (st->possibleKo != NO_POSSIBLE_KO) {
 		wprintf(L"Possible ko if ");
 		move_print(&st->possibleKo);
 		wprintf(L" captured\n");
@@ -302,20 +305,25 @@ void state_print(state* st) {
 	}
 
 	dot* stone;
-	t0 = timer_now();
-	for (i = 0; i < COUNT; ++i) {
+	double t0 = timer_now();
+	for (int i = 0; i < COUNT; ++i) {
 		stone = &board[i];
 		if (stone->group && stone->group->anchor == stone) {
 			group_print(stone->group);
 		}
 	}
-	dt = timer_now() - t0;
-	wprintf(L"Dumping groups took [%.3f us]\n", dt*1e6);*/
+	double dt = timer_now() - t0;
+	wprintf(L"Dumping groups took [%.3f us]\n", dt*1e6);
 }
 
-// Stone must already exist on board
+ALWAYS_INLINE void board_set_stone(dot* stone, color player, group* gp) {
+	stone->player = player;
+	stone->group = gp;
+}
+
+// Stone must already be set on board
 // Assumes linked list never empty
-void group_add_stone(group* gp, dot* stone, int liberties) {
+ALWAYS_INLINE void group_add_stone(group* gp, dot* stone, int liberties) {
 	dot* anchor = gp->anchor;
 	stone->prev = anchor->prev;
 	stone->next = anchor;
@@ -352,11 +360,6 @@ group* group_merge_and_destroy_smaller(group* gp1, group* gp2) {
 		stone = stone->next;
 	} while (stone != b0);
 
-	// a0->prev->next = b0->prev;
-	// b0->prev->prev = a0->prev;
-	// a0->prev = b0;
-	// b0->next = a0;
-
 	dot* at = a0->prev;
 	dot* bt = b0->prev;
 	a0->prev = bt;
@@ -373,7 +376,7 @@ group* group_merge_and_destroy_smaller(group* gp1, group* gp2) {
 }
 
 // Change freedoms for neighboring groups of given color
-void change_neighbors_freedoms_if_specific_color(dot* board, color player, int i, int j, int delta) {
+ALWAYS_INLINE void change_neighbors_freedoms_if_specific_color(dot* board, color player, int i, int j, int delta) {
 
 	if (UP_OK    && BOARD(i-1, j).player == player) BOARD(i-1, j).group->freedoms += delta;
 	if (LEFT_OK  && BOARD(i, j-1).player == player) BOARD(i, j-1).group->freedoms += delta;
@@ -424,6 +427,19 @@ void move_destroy(move* mv) {
 	free(mv);
 }
 
+// Returns a positive number, or -1 if invalid character
+ALWAYS_INLINE int move_parse_char(char c) {
+	if (c >= 'a' && c <= 'z') {
+		return (c - 'a' + 10);
+	} else if (c >= 'A' && c <= 'z') {
+		return (c - 'A' + 36);
+	} else if (c >= '0' && c <= '9') {
+		return (c - '0');
+	} else {
+		return -1;
+	}
+}
+
 // Returns whether move correctly parsed
 bool move_parse(move* mv, char str[2]) {
 	if (str[0] == '-' && str[1] == '-') {
@@ -431,24 +447,8 @@ bool move_parse(move* mv, char str[2]) {
 		return true;
 	}
 
-	int i = -1;
-	int j = -1;
-
-	if (str[0] >= 'a' && str[0] <= 'z') {
-		i = str[0] - 'a' + 10;
-	} else if (str[0] >= 'A' && str[0] <= 'z') {
-		i = str[0] - 'A' + 36;
-	} else if (str[0] >= '0' && str[0] <= '9') {
-		i = str[0] - '0';
-	}
-	if (str[1] >= 'a' && str[1] <= 'z') {
-		j = str[1] - 'a' + 10;
-	} else if (str[1] >= 'A' && str[1] <= 'Z') {
-		j = str[1] - 'A' + 36;
-	} else if (str[1] >= '0' && str[1] <= '9') {
-		j = str[1] - '0';
-	}
-
+	int i = move_parse_char(str[0]);
+	int j = move_parse_char(str[1]);
 	if (i < 0 || i >= SIZE || j < 0 || j >= SIZE) {
 		return false;
 	}
@@ -509,15 +509,12 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 		rand_searches++;
 	} while ((rand_searches < timeout) && (go_move_play(st, &tmp) != SUCCESS));
 
-	// wprintf(L"Tried %d random moves\n", rand_searches);
-
 	if (rand_searches < timeout) {
 		*mv = tmp;
 		return SUCCESS;
 	}
 
 	// Few moves remaining; look for them
-	// wprintf(L"Random play timed out; going systematic\n");
 	int move_count = go_get_legal_plays(st, move_list);
 	if (move_count > 0) {
 		tmp = move_list[randi(0, move_count)];
@@ -585,48 +582,43 @@ group* create_lone_group(dot* stone, color player, int liberties) {
 }
 
 void merge_with_every_friendly(dot* board, color friendly, int i, int j, int liberties) {
-	group* gp0 = create_lone_group(&BOARD(i, j), friendly, liberties);
-
-	if (UP_OK    && BOARD(i-1, j).player == friendly) gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i-1, j).group);
-	if (LEFT_OK  && BOARD(i, j-1).player == friendly) gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i, j-1).group);
-	if (RIGHT_OK && BOARD(i, j+1).player == friendly) gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i, j+1).group);
-	if (DOWN_OK  && BOARD(i+1, j).player == friendly) gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i+1, j).group);
-
-	/*// Maybe better performance? But more spaghetti
-	bool part_of_group = false;
 	group* gp0 = NULL;
 	if (UP_OK && BOARD(i-1, j).player == friendly) {
-		if (!part_of_group) {
+		if (!gp0) {
 			gp0 = BOARD(i-1, j).group;
+			board_set_stone(&BOARD(i, j), friendly, gp0);
 			group_add_stone(gp0, &BOARD(i, j), liberties);
 		} else {
 			gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i-1, j).group);
 		}
 	}
 	if (LEFT_OK && BOARD(i, j-1).player == friendly) {
-		if (!part_of_group) {
+		if (!gp0) {
 			gp0 = BOARD(i, j-1).group;
+			board_set_stone(&BOARD(i, j), friendly, gp0);
 			group_add_stone(gp0, &BOARD(i, j), liberties);
 		} else {
 			gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i, j-1).group);
 		}
 	}
 	if (RIGHT_OK && BOARD(i, j+1).player == friendly) {
-		if (!part_of_group) {
+		if (!gp0) {
 			gp0 = BOARD(i, j+1).group;
+			board_set_stone(&BOARD(i, j), friendly, gp0);
 			group_add_stone(gp0, &BOARD(i, j), liberties);
 		} else {
 			gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i, j+1).group);
 		}
 	}
 	if (DOWN_OK && BOARD(i+1, j).player == friendly) {
-		if (!part_of_group) {
+		if (!gp0) {
 			gp0 = BOARD(i+1, j).group;
+			board_set_stone(&BOARD(i, j), friendly, gp0);
 			group_add_stone(gp0, &BOARD(i, j), liberties);
 		} else {
 			gp0 = group_merge_and_destroy_smaller(gp0, BOARD(i+1, j).group);
 		}
-	}*/
+	}
 }
 
 // State is unchanged at the end (but it can change during execution)

@@ -11,12 +11,6 @@
 #define NO_POSSIBLE_KO -1
 #define MOVE_PASS -1
 
-/*
-group { dot* anchor , int length, int freedoms }
-dot   { color player , group* group, dot* prev, dot* next }
-state { color nextPlayer , dot[] board }
-*/
-
 typedef enum { EMPTY, BLACK, WHITE, NEUTRAL } color;
 
 typedef enum { SUCCESS, FAIL_GAME_ENDED, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_KO, FAIL_SUICIDE, FAIL_OTHER } play_result;

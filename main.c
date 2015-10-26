@@ -52,7 +52,7 @@ play_result karl_play(state* st, move* mv) {
 
 	state test_st;
 
-	int N = 200000;
+	int N = 10000;
 	for (int i = 0; i < N; ++i) {
 		state_copy(st, &test_st);
 
