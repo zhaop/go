@@ -13,6 +13,8 @@ state* state_create() {
 	}
 	state* st = (state*) p;
 	st->nextPlayer = BLACK;
+	st->prisoners[BLACK] = 0.0;
+	st->prisoners[WHITE] = 0.0;
 	st->possibleKo = NO_POSSIBLE_KO;
 	st->passes = 0;
 
@@ -244,7 +246,7 @@ void state_print(state* st) {
 		}
 	}
 
-	float score[3];
+	float score[3] = {0.0, 0.0, 0.0};
 
 	double t0 = timer_now();
 	state_score(st, score, false);
