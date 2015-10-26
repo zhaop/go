@@ -11,6 +11,93 @@ play_result randy_play(state* st, move* mv) {
 	return go_move_play_random(st, mv, move_list);
 }
 
+/*
+legal_moves = all possible moves
+repeat N times:
+	state2 = make a copy of current state
+	pick one random next move	// TODO can also pick a pass (more likely especially near end game)
+	play random moves until game over
+	if game over:
+		count score according to Chinese rules
+		if I win:
+			count as win
+		else:
+			count as lose
+calculate probabilities of winning for each possible next move
+find move with highest probability
+play that move
+*/
+play_result karl_play(state* st, move* mv) {
+	move legal_moves[COUNT+1];
+	int num_moves = go_get_legal_plays(st, legal_moves);
+
+	if (num_moves == 1) {
+		*mv = legal_moves[0];
+		return go_move_play(st, mv);
+	}
+
+	color me = st->nextPlayer;
+	color notme = (me == BLACK) ? WHITE : BLACK;
+
+	int win[COUNT];
+	int lose[COUNT];
+	int draw[COUNT];
+	double pwin[COUNT];
+
+	int i;
+	for (i = 0; i < num_moves; ++i) {
+		win[i] = lose[i] = draw[i] = 0;
+		pwin[i] = 0.0;
+	}
+
+	state test_st;
+
+	int N = 200000;
+	for (int i = 0; i < N; ++i) {
+		state_copy(st, &test_st);
+
+		int test_idx = randi(0, num_moves);
+		move test_mv = legal_moves[test_idx];
+		go_move_play(&test_st, &test_mv);
+
+		move test_mv2;
+		move test_move_list[COUNT+1];
+		while (!go_is_game_over(&test_st)) {
+			go_move_play_random(&test_st, &test_mv2, test_move_list);
+		}
+
+		float test_score[3] = {0.0, 0.0, 0.0};
+		state_score(&test_st, test_score, false);
+		if (test_score[me] > test_score[notme]) {
+			++win[test_idx];
+		} else {
+			++lose[test_idx];
+		}
+		state_destroy_children(&test_st);
+	}
+
+	double best_pwin = 0;
+	move best_move;
+	for (i = 0; i < num_moves; ++i) {
+		pwin[i] = (double) win[i] / (win[i] + lose[i] + 1);
+
+		wprintf(L"Move ");
+		move_print(&legal_moves[i]);
+		wprintf(L": +%d, -%d => %.1f%%\n", win[i], lose[i], pwin[i]*100);
+
+		if (pwin[i] > best_pwin) {
+			best_pwin = pwin[i];
+			best_move = legal_moves[i];
+		};
+	}
+	wprintf(L"Going with ");
+	move_print(&best_move);
+	wprintf(L" at %.1f%%\n", best_pwin*100);
+
+	*mv = best_move;
+	return go_move_play(st, mv);
+}
+
 int main(/*int argc, char* argv[]*/) {
 
 	setlocale(LC_ALL, "");
@@ -111,7 +198,7 @@ int main(/*int argc, char* argv[]*/) {
 
 			wprintf(L"%lc (Randy) played ", color_char((st->nextPlayer == BLACK) ? WHITE : BLACK));
 			move_print(mv);
-			wprintf(L" [%.2Lf us]\n", dt*1e6);
+			wprintf(L" [%.2Lf ms]\n", dt*1e3);
 		}
 	}
 
