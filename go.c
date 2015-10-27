@@ -439,7 +439,7 @@ int group_kill_stones(dot* board, group* gp) {
 		dot* tmp_next = stone->next;
 
 		int i = stone->i / SIZE;
-		int j = stone->i % SIZE;
+		int j = stone->i - i * SIZE;
 		++captured;
 
 		// change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);	// Manually inlined below
@@ -545,7 +545,7 @@ int go_get_legal_plays(state* st, move* move_list) {
 // Plays a random move & stores it in mv
 play_result go_move_play_random(state* st, move* mv, move* move_list) {
 	move tmp;
-	int timeout = COUNT / 2;	// Heuristics
+	int timeout = COUNT;	// Heuristics
 	int rand_searches = 0;
 
 	do {
@@ -691,7 +691,7 @@ bool go_move_legal(state* st, move* mv_ptr) {
 	}
 
 	int i = mv / SIZE;
-	int j = mv % SIZE;
+	int j = mv - i * SIZE;
 
 	if (BOARD(i, j).player != EMPTY) {
 		return false;
@@ -776,7 +776,7 @@ play_result go_move_play(state* st, move* mv_ptr) {
 	}
 
 	int i = mv / SIZE;
-	int j = mv % SIZE;
+	int j = mv - i * SIZE;
 
 	if (board[mv].player != EMPTY) {
 		return FAIL_OCCUPIED;
