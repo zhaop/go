@@ -56,7 +56,7 @@ play_result karl_play(state* st, move* mv) {
 	for (int i = 0; i < N; ++i) {
 		state_copy(st, &test_st);
 
-		int test_idx = randi(0, num_moves);
+		int test_idx = RANDI(0, num_moves);
 		move test_mv = legal_moves[test_idx];
 		go_move_play(&test_st, &test_mv);
 
