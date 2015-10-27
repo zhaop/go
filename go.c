@@ -45,6 +45,11 @@ state* state_create() {
 }
 
 // Deep copy st0 --> st1
+// TODO Decide whether using indirect pointers (addr) are really better than pointers (___*)
+//      Consider where the performance gains really are
+//      Maybe a hybrid direct/indirect pointer setup better?
+//      (indirect gives more flexibility by being virtual, direct gives more performance and readability)
+//      Take into account future developments, like O(1) next-moves finder (replacing current O(N))?
 void state_copy(state* st0, state* st1) {
 	st1->nextPlayer = st0->nextPlayer;
 	st1->possibleKo = st0->possibleKo;
