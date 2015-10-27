@@ -193,7 +193,7 @@ char int_char(int n) {
 
 // Removes element at index from list given by head_i, returns true if succeeded
 // Element's prev_i & next_i will be in an undefined state
-ALWAYS_INLINE bool group_list_remove(group* mem, addr* head_i, addr item_i) {
+static inline bool group_list_remove(group* mem, addr* head_i, addr item_i) {
 	group* item = (mem + item_i);
 	group* prev = (mem + item->prev_i);
 	group* next = (mem + item->next_i);
@@ -218,7 +218,7 @@ void group_init(group* gp, addr head_i, int freedoms) {
 	gp->freedoms = freedoms;
 }
 
-ALWAYS_INLINE void group_list_insert(group* mem, addr* head_i, addr item_i) {
+static inline void group_list_insert(group* mem, addr* head_i, addr item_i) {
 	group* item = (mem + item_i);
 	if (*head_i == ADDR_NULL) {
 		*head_i = item_i;
@@ -344,14 +344,14 @@ void state_print_debug(state* st) {
 	wprintf(L"Dumping groups took [%.3f us]\n", dt*1e6);
 }
 
-ALWAYS_INLINE void stone_init(dot* stone, color player, addr group_i) {
+static inline void stone_init(dot* stone, color player, addr group_i) {
 	stone->player = player;
 	stone->group_i = group_i;
 }
 
 // Stone must already be set on board
 // Assumes linked list never empty
-ALWAYS_INLINE void group_add_stone(group* gp, dot* stone, int liberties) {
+static inline void group_add_stone(group* gp, dot* stone, int liberties) {
 	addr head_i = gp->head_i;
 	dot* board = (stone - stone->i);
 	dot* head  = (board + head_i);
@@ -469,7 +469,7 @@ void move_destroy(move* mv) {
 }
 
 // Returns a positive number, or -1 if invalid character
-ALWAYS_INLINE int move_parse_char(char c) {
+static inline int move_parse_char(char c) {
 	if (c >= 'a' && c <= 'z') {
 		return (c - 'a' + 10);
 	} else if (c >= 'A' && c <= 'z') {
@@ -574,13 +574,13 @@ bool check_possible_ko(dot* board, group* mem, int possibleKo, int i, int j) {
 	return false;
 }
 
-ALWAYS_INLINE bool is_neighbor_enemy_dead(dot* board, group* mem, color enemy, int i, int j) {
+static inline bool is_neighbor_enemy_dead(dot* board, group* mem, color enemy, int i, int j) {
 	dot* stone = &BOARD(i, j);
 	return (stone->player == enemy) && ((mem + stone->group_i)->freedoms == 0);
 }
 
 // Destroys enemy group at (i, j) if dead, return number captured
-ALWAYS_INLINE int remove_dead_neighbor_enemy(dot* board, group_pool* pool, color enemy, int i, int j) {
+static inline int remove_dead_neighbor_enemy(dot* board, group_pool* pool, color enemy, int i, int j) {
 	dot* stone = &BOARD(i, j);
 	addr group_i = stone->group_i;
 	// if (is_neighbor_enemy_dead(board, (group*) pool, enemy, i, j)) {
@@ -604,7 +604,7 @@ int count_liberties(dot* board, int i, int j) {
 	return liberties;
 }
 
-ALWAYS_INLINE bool has_living_friendlies(dot* board, group* mem, color friendly, int i, int j) {
+static inline bool has_living_friendlies(dot* board, group* mem, color friendly, int i, int j) {
 	if (UP_OK    && BOARD(i-1, j).player == friendly && GROUP_AT(i-1, j).freedoms != 0) return true;
 	if (LEFT_OK  && BOARD(i, j-1).player == friendly && GROUP_AT(i, j-1).freedoms != 0) return true;
 	if (RIGHT_OK && BOARD(i, j+1).player == friendly && GROUP_AT(i, j+1).freedoms != 0) return true;
@@ -629,7 +629,7 @@ group* create_lone_group(dot* stone, group_pool* pool, color player, int liberti
 	return (pool->mem + stone->group_i);
 }
 
-ALWAYS_INLINE void merge_with_every_friendly(dot* board, group_pool* pool, color friendly, int i, int j, int liberties) {
+static inline void merge_with_every_friendly(dot* board, group_pool* pool, color friendly, int i, int j, int liberties) {
 	group* mem = pool->mem;
 	group* gp0 = NULL;
 	if (UP_OK && BOARD(i-1, j).player == friendly) {
