@@ -409,14 +409,19 @@ group* group_merge_and_destroy_smaller(group_pool* pool, dot* board, group* gp1,
 }
 
 // Change freedoms for neighboring groups of given color
-ALWAYS_INLINE void change_neighbors_freedoms_if_specific_color(dot* board, group* mem, color player, int i, int j, int delta) {
+ALWAYS_INLINE void change_neighbors_freedoms(dot* board, group* mem, int i, int j, int delta) {
+	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms += delta;
+	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms += delta;
+	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms += delta;
+	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms += delta;
+}
 
+// Change freedoms for neighboring groups of given color
+ALWAYS_INLINE void change_neighbors_freedoms_if_specific_color(dot* board, group* mem, color player, int i, int j, int delta) {
 	if (UP_OK    && BOARD(i-1, j).player == player) GROUP_AT(i-1, j).freedoms += delta;
 	if (LEFT_OK  && BOARD(i, j-1).player == player) GROUP_AT(i, j-1).freedoms += delta;
 	if (RIGHT_OK && BOARD(i, j+1).player == player) GROUP_AT(i, j+1).freedoms += delta;
 	if (DOWN_OK  && BOARD(i+1, j).player == player) GROUP_AT(i+1, j).freedoms += delta;
-
-	return;
 }
 
 // Removes all of a group's stones from the board, returns number captured
@@ -570,13 +575,17 @@ ALWAYS_INLINE bool is_neighbor_enemy_dead(dot* board, group* mem, color enemy, i
 }
 
 // Destroys enemy group at (i, j) if dead, return number captured
-int remove_dead_neighbor_enemy(dot* board, group_pool* pool, color enemy, int i, int j) {
-	group* mem = pool->mem;
-	if (is_neighbor_enemy_dead(board, mem, enemy, i, j)) {
-		group* gp = &GROUP_AT(i, j);
-		int captured = group_kill_stones(board, mem, gp);
-		group_pool_return(pool, (gp - mem));
-		return captured;
+ALWAYS_INLINE int remove_dead_neighbor_enemy(dot* board, group_pool* pool, color enemy, int i, int j) {
+	dot* stone = &BOARD(i, j);
+	addr group_i = stone->group_i;
+	// if (is_neighbor_enemy_dead(board, (group*) pool, enemy, i, j)) {
+	if (stone->player == enemy) {
+		group* gp = ((group*) pool + group_i);
+		if (gp->freedoms == 0) {
+			int captured = group_kill_stones(board, (group*) pool, gp);
+			group_pool_return(pool, group_i);
+			return captured;
+		}
 	}
 	return 0;
 }
@@ -590,7 +599,7 @@ int count_liberties(dot* board, int i, int j) {
 	return liberties;
 }
 
-bool has_living_friendlies(dot* board, group* mem, color friendly, int i, int j) {
+ALWAYS_INLINE bool has_living_friendlies(dot* board, group* mem, color friendly, int i, int j) {
 	if (UP_OK    && BOARD(i-1, j).player == friendly && GROUP_AT(i-1, j).freedoms != 0) return true;
 	if (LEFT_OK  && BOARD(i, j-1).player == friendly && GROUP_AT(i, j-1).freedoms != 0) return true;
 	if (RIGHT_OK && BOARD(i, j+1).player == friendly && GROUP_AT(i, j+1).freedoms != 0) return true;
@@ -772,8 +781,13 @@ play_result go_move_play(state* st, move* mv_ptr) {
 		}
 	}
 
-	// Check neighbors for dead enemies
-	change_neighbors_freedoms_if_specific_color(board, mem, enemy, i, j, -1);
+	// Check neighbors for dead enemies & dead friendly neighbors
+	// change_neighbors_freedoms(board, mem, i, j, -1);
+	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms--;
+	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms--;
+	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms--;
+	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms--;
+
 
 	// If dead enemy, kill group
 	int captured = 0;
@@ -792,15 +806,15 @@ play_result go_move_play(state* st, move* mv_ptr) {
 	// Count own liberties
 	int liberties = count_liberties(board, i, j);
 
-	// Look for dead friendly neighbors
-	change_neighbors_freedoms_if_specific_color(board, mem, friendly, i, j, -1);
-
 	// Look for illegal move or lone-stone cases
 	bool merge_with_friendlies = true;
 	if (!has_living_friendlies(board, mem, friendly, i, j)) {
 		if (liberties == 0) {
-			change_neighbors_freedoms_if_specific_color(board, mem, friendly, i, j, +1);
-			change_neighbors_freedoms_if_specific_color(board, mem, enemy, i, j, +1);
+			// change_neighbors_freedoms(board, mem, i, j, +1);
+			if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms++;
+			if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms++;
+			if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms++;
+			if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms++;
 			return FAIL_SUICIDE;	// Illegal
 		} else if (!has_dying_friendlies(board, mem, friendly, i, j)) {
 			create_lone_group(&BOARD(i, j), pool, friendly, liberties);
