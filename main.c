@@ -73,7 +73,6 @@ play_result karl_play(state* st, move* mv) {
 		} else {
 			++lose[test_idx];
 		}
-		state_destroy_children(&test_st);
 	}
 
 	double best_pwin = 0;
