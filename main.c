@@ -198,8 +198,9 @@ int main(/*int argc, char* argv[]*/) {
 
 			wprintf(L"%lc (Karl) played ", color_char((st->nextPlayer == BLACK) ? WHITE : BLACK));
 			move_print(mv);
-			wprintf(L" [%.2Lf ms]\n", dt*1e3);
+			wprintf(L" [%.0Lf ms]\n", dt*1e3);
 
+			state_print(st);
 			return 42;
 		}
 	}
