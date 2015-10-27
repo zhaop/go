@@ -505,7 +505,7 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 	int rand_searches = 0;
 
 	do {
-		tmp = randi(-1, COUNT);
+		tmp = RANDI(-1, COUNT);
 		rand_searches++;
 	} while ((rand_searches < timeout) && (go_move_play(st, &tmp) != SUCCESS));
 
@@ -517,7 +517,7 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 	// Few moves remaining; look for them
 	int move_count = go_get_legal_plays(st, move_list);
 	if (move_count > 0) {
-		tmp = move_list[randi(0, move_count)];
+		tmp = move_list[RANDI(0, move_count)];
 		return go_move_play(st, &tmp);
 	}
 
@@ -533,7 +533,7 @@ bool check_possible_ko(dot* board, int possibleKo, int i, int j) {
 	return false;
 }
 
-bool is_neighbor_enemy_dead(dot* board, color enemy, int i, int j) {
+ALWAYS_INLINE bool is_neighbor_enemy_dead(dot* board, color enemy, int i, int j) {
 	return (BOARD(i, j).player == enemy) && (BOARD(i, j).group->freedoms == 0);
 }
 
@@ -716,7 +716,7 @@ play_result go_move_play(state* st, move* mv_ptr) {
 	int i = mv / SIZE;
 	int j = mv % SIZE;
 
-	if (BOARD(i, j).player != EMPTY) {
+	if (board[mv].player != EMPTY) {
 		return FAIL_OCCUPIED;
 	}
 
