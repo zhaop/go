@@ -25,27 +25,27 @@ struct group;
 struct dot;
 
 typedef struct group {
-	addr prev_i;
-	addr next_i;
+	struct group* prev;
+	struct group* next;
 
-	addr head_i;
+	struct dot* head;
 	int length;
 	int freedoms;
 } group;
 
 typedef struct group_pool {
-	group mem[NGROUPS];	// Must come first
-	addr free_i;
-	addr used_i;
+	struct group mem[NGROUPS];	// Must come first
+	struct group* free;
+	struct group* used;
 } group_pool;
 
 // Dots are sometimes called "stone"s when they're not empty
 typedef struct dot {
 	addr i;		// Location; should be constant
 	color player;
-	addr group_i;
-	addr prev_i;	// Prev in group
-	addr next_i;	// Next in group
+	struct group* group;
+	struct dot* prev;	// Prev in group
+	struct dot* next;	// Next in group
 } dot;
 
 typedef struct {
@@ -53,8 +53,8 @@ typedef struct {
 	int possibleKo;		// Board index or NO_POSSIBLE_KO
 	int passes;		// Consecutive passes (when 2, game is over)
 	int prisoners[3];
-	dot board[COUNT];
-	group_pool groups;
+	struct dot board[COUNT];
+	struct group_pool groups;
 } state;
 
 typedef struct {
