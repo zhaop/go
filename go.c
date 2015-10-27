@@ -184,9 +184,9 @@ bool is_star_point(int i, int j) {
 
 wchar_t color_char(color player) {
 	if (player == BLACK) {
-		return L'🌑';
-	} else if (player == WHITE) {
 		return L'⭘';
+	} else if (player == WHITE) {
+		return L'🌑';
 	} else {
 		return L'·';
 	}
