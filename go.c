@@ -23,21 +23,22 @@ state* state_create() {
 	for (int i = 0; i < COUNT; ++i) {
 		board[i].i = i;
 		board[i].player = EMPTY;
-		board[i].group_i = ADDR_NULL;
-		board[i].prev_i = ADDR_NULL;
-		board[i].next_i = ADDR_NULL;
+		board[i].group = NULL;
+		board[i].prev = NULL;
+		board[i].next = NULL;
 	}
 
 	group_pool* groups = &(st->groups);
 	group* mem = groups->mem;
-	groups->free_i = 0;
-	groups->used_i = ADDR_NULL;
+	groups->free = mem;
+	groups->used = NULL;
 	for (int i = 0; i < NGROUPS; ++i) {
 		group* gp = (mem + i);
-		gp->prev_i = (i > 0) ? (i-1) : (NGROUPS-1);
-		gp->next_i = (i < NGROUPS-1) ? (i+1) : 0;
 
-		gp->head_i = ADDR_NULL;
+		gp->prev = (i > 0)         ? &mem[i - 1] : &mem[NGROUPS - 1];
+		gp->next = (i < NGROUPS-1) ? &mem[i + 1] : &mem[0];
+
+		gp->head = NULL;
 		gp->length = 0;
 		gp->freedoms = 0;
 	}
@@ -57,11 +58,29 @@ void state_copy(state* st0, state* st1) {
 	st1->prisoners[1] = st0->prisoners[1];
 	st1->prisoners[2] = st0->prisoners[2];
 
-	memcpy(st1->board, st0->board, COUNT * sizeof(dot));
+	dot* board0 = st0->board;
+	dot* board1 = st1->board;
+	memcpy(board1, st0->board, COUNT * sizeof(dot));
 
-	memcpy(st1->groups.mem, st0->groups.mem, NGROUPS * sizeof(group));
-	st1->groups.free_i = st0->groups.free_i;
-	st1->groups.used_i = st0->groups.used_i;
+	// TODO Make prettier
+	group* mem0 = st0->groups.mem;
+	group* mem1 = st1->groups.mem;
+	for (int i = 0; i < COUNT; ++i) {
+		board1[i].group = (board0[i].group == NULL) ? NULL : (mem1 + (board0[i].group - mem0));
+		board1[i].prev = (board0[i].prev == NULL) ? NULL : (board1 + (board0[i].prev - board0));
+		board1[i].next = (board0[i].next == NULL) ? NULL : (board1 + (board0[i].next - board0));
+	}
+
+	memcpy(mem1, mem0, NGROUPS * sizeof(group));
+
+	for (int i = 0; i < NGROUPS; ++i) {
+		mem1[i].prev = (mem0[i].prev == NULL) ? NULL : (mem1 + (mem0[i].prev - mem0));
+		mem1[i].next = (mem0[i].next == NULL) ? NULL : (mem1 + (mem0[i].next - mem0));
+		mem1[i].head = (mem0[i].head == NULL) ? NULL : (board1 + (mem0[i].head - board0));
+	}
+
+	st1->groups.free = (st0->groups.free == NULL) ? NULL : (mem1 + (st0->groups.free - mem0));
+	st1->groups.used = (st0->groups.used == NULL) ? NULL : (mem1 + (st0->groups.used - mem0));
 }
 
 void state_destroy(state* st) {
@@ -69,8 +88,8 @@ void state_destroy(state* st) {
 }
 
 #define ALREADY_COUNTED(i, j) already_counted[(i)*SIZE+(j)]
-#define BOARD(i,j) board[(i)*SIZE+(j)]
-#define GROUP_AT(i,j) mem[(BOARD(i, j)).group_i]
+#define BOARD(i,j) (board[(i)*SIZE+(j)])
+#define GROUP_AT(i,j) (BOARD(i, j).group)
 #define UP_OK    (i >= 1)
 #define LEFT_OK  (j >= 1)
 #define RIGHT_OK (j <= SIZE-2)
@@ -198,89 +217,81 @@ char int_char(int n) {
 
 // Removes element at index from list given by head_i, returns true if succeeded
 // Element's prev_i & next_i will be in an undefined state
-static inline bool group_list_remove(group* mem, addr* head_i, addr item_i) {
-	group* item = (mem + item_i);
-	group* prev = (mem + item->prev_i);
-	group* next = (mem + item->next_i);
+static inline bool group_list_remove(group** head, group* item) {
+	group* prev = item->prev;
+	group* next = item->next;
 	if (item == prev || item == next) {
 		if (item == prev && item == next) {
-			*head_i = ADDR_NULL;
+			*head = NULL;
 		} else {
-			wprintf(L"Error: Group pool has data inconsistency\n");
+			wprintf(L"Error: Group pool has data inconsistency\n");	// TODO Still necessary?
 			return false;
 		}
 	} else {
-		prev->next_i = item->next_i;
-		next->prev_i = item->prev_i;
-		*head_i = item->next_i;
+		prev->next = item->next;
+		next->prev = item->prev;
+		*head = item->next;
 	}
 	return true;
 }
 
-void group_init(group* gp, addr head_i, int freedoms) {
-	gp->head_i = head_i;
+void group_init(group* gp, dot* head, int freedoms) {
+	gp->head = head;
 	gp->length = 1;
 	gp->freedoms = freedoms;
 }
 
-static inline void group_list_insert(group* mem, addr* head_i, addr item_i) {
-	group* item = (mem + item_i);
-	if (*head_i == ADDR_NULL) {
-		*head_i = item_i;
-		item->prev_i = item_i;
-		item->next_i = item_i; 
+static inline void group_list_insert(group** head, group* item) {
+	if (*head == NULL) {
+		*head = item;
+		item->prev = item;
+		item->next = item; 
 	} else {
-		group* head = (mem + *head_i);
-		item->prev_i = head->prev_i;
-		item->next_i = *head_i;
-		(mem + head->prev_i)->next_i = item_i;
-		head->prev_i = item_i;
+		item->prev = (*head)->prev;
+		item->next = (*head);
+		(*head)->prev->next = item;
+		(*head)->prev = item;
 	}
 }
 
 // Remember to call group_init after borrowing a group from the pool
-addr group_pool_borrow(group_pool* pool) {
-	if (pool->free_i == ADDR_NULL) {
-		return ADDR_NULL;
+group* group_pool_borrow(group_pool* pool) {
+	if (pool->free == NULL) {
+		return NULL;
 	}
 
-	group* mem = pool->mem;
-	addr item_i = pool->free_i;
-
-	if (!group_list_remove(mem, &pool->free_i, item_i)) {
-		return ADDR_NULL;
+	group* item = pool->free;
+	if (!group_list_remove(&pool->free, item)) {
+		return NULL;
 	}
 
-	group_list_insert(mem, &pool->used_i, item_i);
+	group_list_insert(&pool->used, item);
 
-	return item_i;
+	return item;
 }
 
-bool group_pool_return(group_pool* pool, addr item_i) {
-	group* mem = pool->mem;
-
-	if (!group_list_remove(mem, &pool->used_i, item_i)) {
+bool group_pool_return(group_pool* pool, group* item) {
+	if (!group_list_remove(&pool->used, item)) {
 		return false;
 	}
 
-	group_list_insert(mem, &pool->free_i, item_i);
+	group_list_insert(&pool->free, item);
 
 	return true;
 }
 
-void group_print(dot* board, group* gp) {
-	addr head_i = gp->head_i;
-	dot* head = (board + head_i);
+void group_print(group* gp) {
+	dot* head = gp->head;
 	
 	wchar_t str[3];
-	move_sprint(str, &head_i);
+	move_sprint(str, &head->i);
 	wprintf(L"Group %lc {head: %ls, length: %d, freedoms: %d, list: ", color_char(head->player), str, gp->length, gp->freedoms);
 
 	dot* stone = head;
 	do {
-		move_print(&(stone->i));
+		move_print(&stone->i);
 		wprintf(L"->");
-		stone = (board + stone->next_i);
+		stone = stone->next;
 	} while (stone != head);
 
 	wprintf(L"}\n");
@@ -327,8 +338,6 @@ void state_print(state* st) {
 // Debug info about groups & ko
 void state_print_debug(state* st) {
 	dot* board = st->board;
-	group_pool* groups = &(st->groups);
-	group* mem = groups->mem;
 	if (st->possibleKo != NO_POSSIBLE_KO) {
 		wprintf(L"Possible ko if ");
 		move_print(&st->possibleKo);
@@ -337,35 +346,33 @@ void state_print_debug(state* st) {
 		wprintf(L"No possible ko\n");
 	}
 
-	dot* stone;
 	double t0 = timer_now();
 	for (int i = 0; i < COUNT; ++i) {
-		stone = &board[i];
-		if ((stone->group_i != ADDR_NULL) && mem[stone->group_i].head_i == i) {
-			group_print(board, (mem + stone->group_i));
+		dot* stone = &board[i];
+		group* gp = stone->group;
+		if ((gp != NULL) && gp->head == stone) {
+			group_print(gp);
 		}
 	}
 	double dt = timer_now() - t0;
 	wprintf(L"Dumping groups took [%.3f us]\n", dt*1e6);
 }
 
-static inline void stone_init(dot* stone, color player, addr group_i) {
+static inline void stone_init(dot* stone, color player, group* gp) {
 	stone->player = player;
-	stone->group_i = group_i;
+	stone->group = gp;
 }
 
 // Stone must already be set on board
 // Assumes linked list never empty
 static inline void group_add_stone(group* gp, dot* stone, int liberties) {
-	addr head_i = gp->head_i;
-	dot* board = (stone - stone->i);
-	dot* head  = (board + head_i);
-	dot* tail  = (board + head->prev_i);
+	dot* head = gp->head;
+	dot* tail = head->prev;
 	
-	stone->prev_i = head->prev_i;
-	stone->next_i = head_i;
-	tail->next_i = stone->i;
-	head->prev_i = stone->i;
+	stone->prev = tail;
+	stone->next = head;
+	tail->next = stone;
+	head->prev = stone;
 
 	++gp->length;
 	gp->freedoms += liberties;
@@ -373,9 +380,7 @@ static inline void group_add_stone(group* gp, dot* stone, int liberties) {
 
 // Merges smaller group into bigger, and returns the latter
 // DO NOT have any references to these groups prior to call (one is destroyed)
-group* group_merge_and_destroy_smaller(group_pool* pool, dot* board, group* gp1, group* gp2) {
-	group* mem_start = pool->mem;
-
+group* group_merge_and_destroy_smaller(group_pool* pool, group* gp1, group* gp2) {
 	if (gp1 == gp2) {
 		return gp1;
 	}
@@ -386,29 +391,27 @@ group* group_merge_and_destroy_smaller(group_pool* pool, dot* board, group* gp1,
 		gp2 = tmp;
 	}
 
-	addr head1_i = gp1->head_i;
-	addr head2_i = gp2->head_i;
-	dot* head1 = (board + head1_i);
-	dot* head2 = (board + head2_i);
+	dot* head1 = gp1->head;
+	dot* head2 = gp2->head;
 
 	dot* stone = head2;
 	do {
-		stone->group_i = (gp1 - mem_start);
-		stone = (board + stone->next_i);
+		stone->group = gp1;
+		stone = stone->next;
 	} while (stone != head2);
 
-	addr tail1_i = head1->prev_i;
-	addr tail2_i = head2->prev_i;
+	dot* tail1 = head1->prev;
+	dot* tail2 = head2->prev;
 
-	(board + head1_i)->prev_i = tail2_i;
-	(board + tail1_i)->next_i = head2_i;
-	(board + head2_i)->prev_i = tail1_i;
-	(board + tail2_i)->next_i = head1_i;
+	head1->prev = tail2;
+	tail1->next = head2;
+	head2->prev = tail1;
+	tail2->next = head1;
 
 	gp1->length += gp2->length;
 	gp1->freedoms += gp2->freedoms;
 
-	group_pool_return(pool, (gp2 - mem_start));
+	group_pool_return(pool, gp2);
 
 	return gp1;
 }
@@ -431,29 +434,29 @@ MANUAL_INLINE /*void change_neighbors_freedoms_if_specific_color(dot* board, gro
 
 // Removes all of a group's stones from the board, returns number captured
 // Caller must destroy gp afterwards
-int group_kill_stones(dot* board, group* mem, group* gp) {
+int group_kill_stones(dot* board, group* gp) {
 	int captured = 0;
-	dot* head = (board + gp->head_i);
+	dot* head = gp->head;
 	color enemy = (head->player == BLACK) ? WHITE : BLACK;
 
 	dot* stone = head;
 	do {
-		dot* tmp_next = (board + stone->next_i);
+		dot* tmp_next = stone->next;
 
 		int i = stone->i / SIZE;
 		int j = stone->i % SIZE;
 		++captured;
 
 		// change_neighbors_freedoms_if_specific_color(board, mem, enemy, i, j, +1);	// Manually inlined below
-		if (UP_OK    && BOARD(i-1, j).player == enemy) GROUP_AT(i-1, j).freedoms++;
-		if (LEFT_OK  && BOARD(i, j-1).player == enemy) GROUP_AT(i, j-1).freedoms++;
-		if (RIGHT_OK && BOARD(i, j+1).player == enemy) GROUP_AT(i, j+1).freedoms++;
-		if (DOWN_OK  && BOARD(i+1, j).player == enemy) GROUP_AT(i+1, j).freedoms++;
+		if (UP_OK    && BOARD(i-1, j).player == enemy) GROUP_AT(i-1, j)->freedoms++;
+		if (LEFT_OK  && BOARD(i, j-1).player == enemy) GROUP_AT(i, j-1)->freedoms++;
+		if (RIGHT_OK && BOARD(i, j+1).player == enemy) GROUP_AT(i, j+1)->freedoms++;
+		if (DOWN_OK  && BOARD(i+1, j).player == enemy) GROUP_AT(i+1, j)->freedoms++;
 
 		stone->player = EMPTY;
-		stone->group_i = ADDR_NULL;
-		stone->prev_i = ADDR_NULL;
-		stone->next_i = ADDR_NULL;
+		stone->group = NULL;
+		stone->prev = NULL;
+		stone->next = NULL;
 
 		stone = tmp_next;
 	} while (stone != head);
@@ -462,11 +465,11 @@ int group_kill_stones(dot* board, group* mem, group* gp) {
 }
 
 move* move_create() {
-	void* p;
-	if (!(p = malloc(sizeof(move)))) {
+	move* mv;
+	if (!(mv = (move*)malloc(sizeof(move)))) {
 		return NULL;
 	}
-	return (move*) p;
+	return mv;
 }
 
 void move_destroy(move* mv) {
@@ -571,31 +574,28 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 }
 
 // True if ko rule forbids move
-bool check_possible_ko(dot* board, group* mem, int possibleKo, int i, int j) {
+bool check_possible_ko(dot* board, int possibleKo, int i, int j) {
 	if (possibleKo == i*SIZE + j) {
-		group* gp = &GROUP_AT(i, j);
+		group* gp = GROUP_AT(i, j);
 		return (gp->length == 1) && (gp->freedoms == 1);
 	}
 	return false;
 }
 
-static inline bool is_neighbor_enemy_dead(dot* board, group* mem, color enemy, int i, int j) {
+static inline bool is_neighbor_enemy_dead(dot* board, color enemy, int i, int j) {
 	dot* stone = &BOARD(i, j);
-	return (stone->player == enemy) && ((mem + stone->group_i)->freedoms == 0);
+	return (stone->player == enemy) && (stone->group->freedoms == 0);
 }
 
 // Destroys enemy group at (i, j) if dead, return number captured
 static inline int remove_dead_neighbor_enemy(dot* board, group_pool* pool, color enemy, int i, int j) {
 	dot* stone = &BOARD(i, j);
-	addr group_i = stone->group_i;
+	group* gp = stone->group;
 	// if (is_neighbor_enemy_dead(board, (group*) pool, enemy, i, j)) {
-	if (stone->player == enemy) {
-		group* gp = ((group*) pool + group_i);
-		if (gp->freedoms == 0) {
-			int captured = group_kill_stones(board, (group*) pool, gp);
-			group_pool_return(pool, group_i);
-			return captured;
-		}
+	if (stone->player == enemy && gp->freedoms == 0) {
+		int captured = group_kill_stones(board, gp);
+		group_pool_return(pool, gp);
+		return captured;
 	}
 	return 0;
 }
@@ -609,68 +609,69 @@ int count_liberties(dot* board, int i, int j) {
 	return liberties;
 }
 
-static inline bool has_living_friendlies(dot* board, group* mem, color friendly, int i, int j) {
-	if (UP_OK    && BOARD(i-1, j).player == friendly && GROUP_AT(i-1, j).freedoms != 0) return true;
-	if (LEFT_OK  && BOARD(i, j-1).player == friendly && GROUP_AT(i, j-1).freedoms != 0) return true;
-	if (RIGHT_OK && BOARD(i, j+1).player == friendly && GROUP_AT(i, j+1).freedoms != 0) return true;
-	if (DOWN_OK  && BOARD(i+1, j).player == friendly && GROUP_AT(i+1, j).freedoms != 0) return true;
+static inline bool has_living_friendlies(dot* board, color friendly, int i, int j) {
+	if (UP_OK    && BOARD(i-1, j).player == friendly && GROUP_AT(i-1, j)->freedoms != 0) return true;
+	if (LEFT_OK  && BOARD(i, j-1).player == friendly && GROUP_AT(i, j-1)->freedoms != 0) return true;
+	if (RIGHT_OK && BOARD(i, j+1).player == friendly && GROUP_AT(i, j+1)->freedoms != 0) return true;
+	if (DOWN_OK  && BOARD(i+1, j).player == friendly && GROUP_AT(i+1, j)->freedoms != 0) return true;
 	return false;
 }
 
-bool has_dying_friendlies(dot* board, group* mem, color friendly, int i, int j) {
-	if (UP_OK    && BOARD(i-1, j).player == friendly && GROUP_AT(i-1, j).freedoms == 0) return true;
-	if (LEFT_OK  && BOARD(i, j-1).player == friendly && GROUP_AT(i, j-1).freedoms == 0) return true;
-	if (RIGHT_OK && BOARD(i, j+1).player == friendly && GROUP_AT(i, j+1).freedoms == 0) return true;
-	if (DOWN_OK  && BOARD(i+1, j).player == friendly && GROUP_AT(i+1, j).freedoms == 0) return true;
+bool has_dying_friendlies(dot* board, color friendly, int i, int j) {
+	if (UP_OK    && BOARD(i-1, j).player == friendly && GROUP_AT(i-1, j)->freedoms == 0) return true;
+	if (LEFT_OK  && BOARD(i, j-1).player == friendly && GROUP_AT(i, j-1)->freedoms == 0) return true;
+	if (RIGHT_OK && BOARD(i, j+1).player == friendly && GROUP_AT(i, j+1)->freedoms == 0) return true;
+	if (DOWN_OK  && BOARD(i+1, j).player == friendly && GROUP_AT(i+1, j)->freedoms == 0) return true;
 	return false;
 }
 
 group* create_lone_group(dot* stone, group_pool* pool, color player, int liberties) {
 	stone->player = player;
-	stone->prev_i = stone->i;
-	stone->next_i = stone->i;
-	stone->group_i = group_pool_borrow(pool);
-	group_init((pool->mem + stone->group_i), stone->i, liberties);
-	return (pool->mem + stone->group_i);
+	stone->prev = stone;
+	stone->next = stone;
+
+	group* gp = group_pool_borrow(pool);
+	stone->group = gp;
+	group_init(gp, stone, liberties);
+	return gp;
 }
 
 static inline void merge_with_every_friendly(dot* board, group_pool* pool, color friendly, int i, int j, int liberties) {
-	group* mem = pool->mem;
-	group* gp0 = NULL;
+	group* gp = NULL;
 	if (UP_OK && BOARD(i-1, j).player == friendly) {
-		if (!gp0) {
-			gp0 = &GROUP_AT(i-1, j);
-			stone_init(&BOARD(i, j), friendly, (gp0 - mem));
-			group_add_stone(gp0, &BOARD(i, j), liberties);
+		if (!gp) {
+			gp = GROUP_AT(i-1, j);
+			stone_init(&BOARD(i, j), friendly, gp);
+			group_add_stone(gp, &BOARD(i, j), liberties);
 		} else {
-			gp0 = group_merge_and_destroy_smaller(pool, board, gp0, &GROUP_AT(i-1, j));
+			gp = group_merge_and_destroy_smaller(pool, gp, GROUP_AT(i-1, j));
 		}
 	}
 	if (LEFT_OK && BOARD(i, j-1).player == friendly) {
-		if (!gp0) {
-			gp0 = &GROUP_AT(i, j-1);
-			stone_init(&BOARD(i, j), friendly, (gp0 - mem));
-			group_add_stone(gp0, &BOARD(i, j), liberties);
+		if (!gp) {
+			gp = GROUP_AT(i, j-1);
+			stone_init(&BOARD(i, j), friendly, gp);
+			group_add_stone(gp, &BOARD(i, j), liberties);
 		} else {
-			gp0 = group_merge_and_destroy_smaller(pool, board, gp0, &GROUP_AT(i, j-1));
+			gp = group_merge_and_destroy_smaller(pool, gp, GROUP_AT(i, j-1));
 		}
 	}
 	if (RIGHT_OK && BOARD(i, j+1).player == friendly) {
-		if (!gp0) {
-			gp0 = &GROUP_AT(i, j+1);
-			stone_init(&BOARD(i, j), friendly, (gp0 - mem));
-			group_add_stone(gp0, &BOARD(i, j), liberties);
+		if (!gp) {
+			gp = GROUP_AT(i, j+1);
+			stone_init(&BOARD(i, j), friendly, gp);
+			group_add_stone(gp, &BOARD(i, j), liberties);
 		} else {
-			gp0 = group_merge_and_destroy_smaller(pool, board, gp0, &GROUP_AT(i, j+1));
+			gp = group_merge_and_destroy_smaller(pool, gp, GROUP_AT(i, j+1));
 		}
 	}
 	if (DOWN_OK && BOARD(i+1, j).player == friendly) {
-		if (!gp0) {
-			gp0 = &GROUP_AT(i+1, j);
-			stone_init(&BOARD(i, j), friendly, (gp0 - mem));
-			group_add_stone(gp0, &BOARD(i, j), liberties);
+		if (!gp) {
+			gp = GROUP_AT(i+1, j);
+			stone_init(&BOARD(i, j), friendly, gp);
+			group_add_stone(gp, &BOARD(i, j), liberties);
 		} else {
-			gp0 = group_merge_and_destroy_smaller(pool, board, gp0, &GROUP_AT(i+1, j));
+			gp = group_merge_and_destroy_smaller(pool, gp, GROUP_AT(i+1, j));
 		}
 	}
 }
@@ -679,8 +680,6 @@ static inline void merge_with_every_friendly(dot* board, group_pool* pool, color
 bool go_move_legal(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	dot* board = st->board;
-	group_pool* pool = &(st->groups);
-	group* mem = pool->mem;
 	color friendly = st->nextPlayer;
 	color enemy = (friendly == BLACK) ? WHITE : BLACK;
 
@@ -706,10 +705,10 @@ bool go_move_legal(state* st, move* mv_ptr) {
 	// Check for simple ko
 	if (st->possibleKo != NO_POSSIBLE_KO) {
 		bool ko_rule_applies =
-			   (UP_OK    && check_possible_ko(board, mem, st->possibleKo, i-1, j))
-			|| (LEFT_OK  && check_possible_ko(board, mem, st->possibleKo, i, j-1))
-			|| (RIGHT_OK && check_possible_ko(board, mem, st->possibleKo, i, j+1))
-			|| (DOWN_OK  && check_possible_ko(board, mem, st->possibleKo, i+1, j));
+			   (UP_OK    && check_possible_ko(board, st->possibleKo, i-1, j))
+			|| (LEFT_OK  && check_possible_ko(board, st->possibleKo, i, j-1))
+			|| (RIGHT_OK && check_possible_ko(board, st->possibleKo, i, j+1))
+			|| (DOWN_OK  && check_possible_ko(board, st->possibleKo, i+1, j));
 
 		if (ko_rule_applies) {
 			return false;
@@ -717,16 +716,16 @@ bool go_move_legal(state* st, move* mv_ptr) {
 	}
 
 	// change_neighbors_freedoms(board, mem, i, j, -1);	// MANUAL_INLINE below
-	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms--;
-	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms--;
-	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms--;
-	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms--;
+	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j)->freedoms--;
+	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1)->freedoms--;
+	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1)->freedoms--;
+	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j)->freedoms--;
 
 	// If enemy killed, move is legal
-	if      (UP_OK    && is_neighbor_enemy_dead(board, mem, enemy, i-1, j)) goto cleanup_legal;
-	else if (LEFT_OK  && is_neighbor_enemy_dead(board, mem, enemy, i, j-1)) goto cleanup_legal;
-	else if (RIGHT_OK && is_neighbor_enemy_dead(board, mem, enemy, i, j+1)) goto cleanup_legal;
-	else if (DOWN_OK  && is_neighbor_enemy_dead(board, mem, enemy, i+1, j)) goto cleanup_legal;
+	if      (UP_OK    && is_neighbor_enemy_dead(board, enemy, i-1, j)) goto cleanup_legal;
+	else if (LEFT_OK  && is_neighbor_enemy_dead(board, enemy, i, j-1)) goto cleanup_legal;
+	else if (RIGHT_OK && is_neighbor_enemy_dead(board, enemy, i, j+1)) goto cleanup_legal;
+	else if (DOWN_OK  && is_neighbor_enemy_dead(board, enemy, i+1, j)) goto cleanup_legal;
 
 	// If has liberty, move is legal
 	if (UP_OK    && BOARD(i-1, j).player == EMPTY) goto cleanup_legal;
@@ -735,7 +734,7 @@ bool go_move_legal(state* st, move* mv_ptr) {
 	if (DOWN_OK  && BOARD(i+1, j).player == EMPTY) goto cleanup_legal;
 
 	// Look for living friendly neighbors
-	if (has_living_friendlies(board, mem, friendly, i, j)) {
+	if (has_living_friendlies(board, friendly, i, j)) {
 		goto cleanup_legal;
 	} else {
 		goto cleanup_illegal;
@@ -744,18 +743,18 @@ bool go_move_legal(state* st, move* mv_ptr) {
 	// goto considered harmful?
 	cleanup_illegal:
 		// change_neighbors_freedoms(board, mem, i, j, +1);	// MANUAL_INLINE below
-		if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms++;
-		if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms++;
-		if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms++;
-		if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms++;
+		if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j)->freedoms++;
+		if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1)->freedoms++;
+		if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1)->freedoms++;
+		if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j)->freedoms++;
 		return false;
 
 	cleanup_legal:
 		// change_neighbors_freedoms(board, mem, i, j, +1);	// MANUAL_INLINE below
-		if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms++;
-		if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms++;
-		if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms++;
-		if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms++;
+		if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j)->freedoms++;
+		if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1)->freedoms++;
+		if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1)->freedoms++;
+		if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j)->freedoms++;
 		return true;
 }
 
@@ -763,7 +762,6 @@ play_result go_move_play(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	dot* board = st->board;
 	group_pool* pool = &(st->groups);
-	group* mem = pool->mem;
 	color friendly = st->nextPlayer;
 	color enemy = (friendly == BLACK) ? WHITE : BLACK;
 
@@ -792,10 +790,10 @@ play_result go_move_play(state* st, move* mv_ptr) {
 	// Check for simple ko
 	if (st->possibleKo != NO_POSSIBLE_KO) {
 		bool ko_rule_applies =
-			   (UP_OK    && check_possible_ko(board, mem, st->possibleKo, i-1, j))
-			|| (LEFT_OK  && check_possible_ko(board, mem, st->possibleKo, i, j-1))
-			|| (RIGHT_OK && check_possible_ko(board, mem, st->possibleKo, i, j+1))
-			|| (DOWN_OK  && check_possible_ko(board, mem, st->possibleKo, i+1, j));
+			   (UP_OK    && check_possible_ko(board, st->possibleKo, i-1, j))
+			|| (LEFT_OK  && check_possible_ko(board, st->possibleKo, i, j-1))
+			|| (RIGHT_OK && check_possible_ko(board, st->possibleKo, i, j+1))
+			|| (DOWN_OK  && check_possible_ko(board, st->possibleKo, i+1, j));
 
 		if (ko_rule_applies) {
 			return FAIL_KO;
@@ -804,10 +802,10 @@ play_result go_move_play(state* st, move* mv_ptr) {
 
 	// Check neighbors for dead enemies & dead friendly neighbors
 	// change_neighbors_freedoms(board, mem, i, j, -1);
-	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms--;
-	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms--;
-	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms--;
-	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms--;
+	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j)->freedoms--;
+	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1)->freedoms--;
+	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1)->freedoms--;
+	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j)->freedoms--;
 
 
 	// If dead enemy, kill group
@@ -829,15 +827,15 @@ play_result go_move_play(state* st, move* mv_ptr) {
 
 	// Look for illegal move or lone-stone cases
 	bool merge_with_friendlies = true;
-	if (!has_living_friendlies(board, mem, friendly, i, j)) {
+	if (!has_living_friendlies(board, friendly, i, j)) {
 		if (liberties == 0) {
 			// change_neighbors_freedoms(board, mem, i, j, +1);
-			if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms++;
-			if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms++;
-			if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms++;
-			if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms++;
+			if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j)->freedoms++;
+			if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1)->freedoms++;
+			if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1)->freedoms++;
+			if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j)->freedoms++;
 			return FAIL_SUICIDE;	// Illegal
-		} else if (!has_dying_friendlies(board, mem, friendly, i, j)) {
+		} else if (!has_dying_friendlies(board, friendly, i, j)) {
 			create_lone_group(&BOARD(i, j), pool, friendly, liberties);
 			merge_with_friendlies = false;
 		}
