@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #define ALWAYS_INLINE __attribute__((always_inline))
+#define MANUAL_INLINE
 
 long double timer_now();
 

@@ -94,6 +94,7 @@ void state_destroy(state* st) {
 
 #define ALREADY_COUNTED(i, j) already_counted[(i)*SIZE+(j)]
 #define BOARD(i,j) board[(i)*SIZE+(j)]
+#define GROUP_AT(i,j) board[(i)*SIZE+(j)].group
 #define UP_OK    (i >= 1)
 #define LEFT_OK  (j >= 1)
 #define RIGHT_OK (j <= SIZE-2)
@@ -375,26 +376,21 @@ group* group_merge_and_destroy_smaller(group* gp1, group* gp2) {
 	return a;
 }
 
-static inline void change_neighbors_freedoms(dot* board, int i, int j, int delta) {
-
-	if (UP_OK    && BOARD(i-1, j).player != EMPTY) BOARD(i-1, j).group->freedoms += delta;
-	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) BOARD(i, j-1).group->freedoms += delta;
-	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) BOARD(i, j+1).group->freedoms += delta;
-	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) BOARD(i+1, j).group->freedoms += delta;
-
-	return;
-}
+// Change freedoms for neighboring groups of given color
+MANUAL_INLINE /*void change_neighbors_freedoms(dot* board, group* mem, int i, int j, int delta) {
+	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j)->freedoms += delta;
+	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1)->freedoms += delta;
+	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1)->freedoms += delta;
+	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j)->freedoms += delta;
+}*/
 
 // Change freedoms for neighboring groups of given color
-static inline void change_neighbors_freedoms_if_specific_color(dot* board, color player, int i, int j, int delta) {
-
-	if (UP_OK    && BOARD(i-1, j).player == player) BOARD(i-1, j).group->freedoms += delta;
-	if (LEFT_OK  && BOARD(i, j-1).player == player) BOARD(i, j-1).group->freedoms += delta;
-	if (RIGHT_OK && BOARD(i, j+1).player == player) BOARD(i, j+1).group->freedoms += delta;
-	if (DOWN_OK  && BOARD(i+1, j).player == player) BOARD(i+1, j).group->freedoms += delta;
-
-	return;
-}
+MANUAL_INLINE /*void change_neighbors_freedoms_if_specific_color(dot* board, group* mem, color player, int i, int j, int delta) {
+	if (UP_OK    && BOARD(i-1, j).player == player) GROUP_AT(i-1, j)->freedoms += delta;
+	if (LEFT_OK  && BOARD(i, j-1).player == player) GROUP_AT(i, j-1)->freedoms += delta;
+	if (RIGHT_OK && BOARD(i, j+1).player == player) GROUP_AT(i, j+1)->freedoms += delta;
+	if (DOWN_OK  && BOARD(i+1, j).player == player) GROUP_AT(i+1, j)->freedoms += delta;
+}*/
 
 // Removes all of a group's stones from the board, returns number captured
 // Caller must destroy gp afterwards
@@ -412,7 +408,12 @@ int group_kill_stones(dot* board, group* gp) {
 		i = stone->index / SIZE;
 		j = stone->index % SIZE;
 		++captured;
-		change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);
+
+		// change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);	// Manually inlined below
+		if (UP_OK    && BOARD(i-1, j).player == enemy) GROUP_AT(i-1, j)->freedoms++;
+		if (LEFT_OK  && BOARD(i, j-1).player == enemy) GROUP_AT(i, j-1)->freedoms++;
+		if (RIGHT_OK && BOARD(i, j+1).player == enemy) GROUP_AT(i, j+1)->freedoms++;
+		if (DOWN_OK  && BOARD(i+1, j).player == enemy) GROUP_AT(i+1, j)->freedoms++;
 
 		stone->player = EMPTY;
 		stone->group = NULL;
@@ -670,36 +671,47 @@ bool go_move_legal(state* st, move* mv_ptr) {
 		}
 	}
 
+	// change_neighbors_freedoms(board, i, j, -1);	// MANUAL_INLINE below
+	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j)->freedoms--;
+	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1)->freedoms--;
+	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1)->freedoms--;
+	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j)->freedoms--;
+
 	// If enemy killed, move is legal
-	change_neighbors_freedoms_if_specific_color(board, enemy, i, j, -1);
-
-	bool enemy_died = false;
-	if      (UP_OK    && is_neighbor_enemy_dead(board, enemy, i-1, j)) enemy_died = true;
-	else if (LEFT_OK  && is_neighbor_enemy_dead(board, enemy, i, j-1)) enemy_died = true;
-	else if (RIGHT_OK && is_neighbor_enemy_dead(board, enemy, i, j+1)) enemy_died = true;
-	else if (DOWN_OK  && is_neighbor_enemy_dead(board, enemy, i+1, j)) enemy_died = true;
-
-	change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);
-	if (enemy_died) {
-		return true;
-	}
+	if      (UP_OK    && is_neighbor_enemy_dead(board, enemy, i-1, j)) goto cleanup_legal;
+	else if (LEFT_OK  && is_neighbor_enemy_dead(board, enemy, i, j-1)) goto cleanup_legal;
+	else if (RIGHT_OK && is_neighbor_enemy_dead(board, enemy, i, j+1)) goto cleanup_legal;
+	else if (DOWN_OK  && is_neighbor_enemy_dead(board, enemy, i+1, j)) goto cleanup_legal;
 
 	// If has liberty, move is legal
-	if (UP_OK    && BOARD(i-1, j).player == EMPTY) return true;
-	if (LEFT_OK  && BOARD(i, j-1).player == EMPTY) return true;
-	if (RIGHT_OK && BOARD(i, j+1).player == EMPTY) return true;
-	if (DOWN_OK  && BOARD(i+1, j).player == EMPTY) return true;
+	if (UP_OK    && BOARD(i-1, j).player == EMPTY) goto cleanup_legal;
+	if (LEFT_OK  && BOARD(i, j-1).player == EMPTY) goto cleanup_legal;
+	if (RIGHT_OK && BOARD(i, j+1).player == EMPTY) goto cleanup_legal;
+	if (DOWN_OK  && BOARD(i+1, j).player == EMPTY) goto cleanup_legal;
 
 	// Look for living friendly neighbors
-	change_neighbors_freedoms_if_specific_color(board, friendly, i, j, -1);
 	if (has_living_friendlies(board, friendly, i, j)) {
-		change_neighbors_freedoms_if_specific_color(board, friendly, i, j, +1);
-		return true;
+		goto cleanup_legal;
+	} else {
+		goto cleanup_illegal;
 	}
 
-	// No living friendly neighbors
-	change_neighbors_freedoms_if_specific_color(board, friendly, i, j, +1);
-	return false;
+	// goto considered harmful?
+	cleanup_illegal:
+		// change_neighbors_freedoms(board, i, j, +1);	// MANUAL_INLINE below
+		if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j)->freedoms++;
+		if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1)->freedoms++;
+		if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1)->freedoms++;
+		if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j)->freedoms++;
+		return false;
+
+	cleanup_legal:
+		// change_neighbors_freedoms(board, i, j, +1);	// MANUAL_INLINE below
+		if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j)->freedoms++;
+		if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1)->freedoms++;
+		if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1)->freedoms++;
+		if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j)->freedoms++;
+		return true;
 }
 
 play_result go_move_play(state* st, move* mv_ptr) {
