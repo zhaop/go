@@ -60,25 +60,20 @@ play_result karl_play(state* st, move* mv) {
 		move test_mv = legal_moves[test_idx];
 		go_move_play(&test_st, &test_mv);
 
-go_is_game_over(&test_st)) {
-			go_move_play_random(&test_st, &test_		move test_mv2;
+		move test_mv2;
 		move test_move_list[COUNT+1];
-at time %d\n"		while (!go_is_game_over(&test_st)) {
+		int t = 1;
+		while (!go_is_game_over(&test_st)) {
 			go_move_play_random(&test_st, &test_mv2, test_move_list);
-score(&test_st, test_score, false);
-		if (test_score[me] > test_score[notme]) {
-			// 		}
+			++t;
+		}
 
 		float test_score[3] = {0.0, 0.0, 0.0};
 		state_score(&test_st, test_score, false);
 		if (test_score[me] > test_score[notme]) {
-rintf(L"Playout over: Loss recorded for index %d (%d + 1)\n", test_idx, lose[test_idx]);
-			++l			++win[test_idx];
+			++win[test_idx];
 		} else {
-best_pwin = 0;
-	move best_move;
-	for (i = 0; i < num_moves; ++i) {
-		pwin[i] = (double) win[i] / 			++lose[test_idx];
+			++lose[test_idx];
 		}
 	}
 
