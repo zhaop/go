@@ -77,10 +77,10 @@ play_result karl_play(state* st, move* mv, int N) {
 	}
 
 	double best_pwin = 0;
-	move best_move;
+	move best_pwin_move;
 	for (i = 0; i < num_moves; ++i) {
-		pwin[i] = (double) win[i] / (win[i] + lose[i] + 1);
-if (win[i] + lose[i] == 0) {
+
+		if (win[i] + lose[i] == 0) {
 			pwin[i] = 0;
 		} else {
 			pwin[i] = (double) win[i] / (win[i] + lose[i]);
@@ -92,14 +92,14 @@ if (win[i] + lose[i] == 0) {
 
 		if (pwin[i] > best_pwin) {
 			best_pwin = pwin[i];
-			best_move = legal_moves[i];
+			best_pwin_move = legal_moves[i];
 		};
 	}
 	wprintf(L"Going with ");
-	move_print(&best_move);
+	move_print(&best_pwin_move);
 	wprintf(L" at %.1f%%\n", best_pwin*100);
 
-	*mv = best_move;
+	*mv = best_pwin_move;
 	return go_move_play(st, mv);
 }
 
