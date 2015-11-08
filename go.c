@@ -546,6 +546,42 @@ int go_get_legal_plays(state* st, move* move_list) {
 	return num;
 }
 
+// A friendly eye is filled if and only if all four neighbors are the same friendly group or edge
+bool go_fills_in_friendly_eye(dot* board, color friendly, int i, int j) {
+	dot* stone;
+	group* gp = NULL;
+
+	if (i >= 1) {
+		stone = &BOARD(i-1, j);
+		if (stone->player != friendly) return false;
+		if (!gp) gp = stone->group;
+		else if (stone->group != gp) return false;
+	}
+
+	if (j >= 1) {
+		stone = &BOARD(i, j-1);
+		if (stone->player != friendly) return false;
+		if (!gp) gp = stone->group;
+		else if (stone->group != gp) return false;
+	}
+
+	if (i <= SIZE-2) {
+		stone = &BOARD(i, j+1);
+		if (stone->player != friendly) return false;
+		if (!gp) gp = stone->group;
+		else if (stone->group != gp) return false;
+	}
+
+	if (j <= SIZE-2) {
+		stone = &BOARD(i+1, j);
+		if (stone->player != friendly) return false;
+		if (!gp) gp = stone->group;
+		else if (stone->group != gp) return false;
+	}
+
+	return true;
+}
+
 // Plays a random move & stores it in mv
 play_result go_move_play_random(state* st, move* mv, move* move_list) {
 	move tmp;
@@ -569,28 +605,9 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 			}
 		} else if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
 			// Forbid filling in a same group's eye
-			// TODO Also HACK HACK HACK HACK HACK (simplify & make pretty)
 			int i = tmp / SIZE;
 			int j = tmp - i * SIZE;
-			bool groups_same = true;
-			group* gp = NULL;
-			if (i >= 1 && board[tmp-SIZE].player == me) {
-				if (!gp) { gp = board[tmp-SIZE].group; groups_same = false; }
-				else if (gp == board[tmp-SIZE].group) groups_same = true;
-			}
-			if (j >= 1 && board[tmp-1].player == me) {
-				if (!gp) { gp = board[tmp-1].group; groups_same = false; }
-				else if (gp == board[tmp-1].group) groups_same = true;
-			}
-			if (j <= SIZE-2 && board[tmp+1].player == me) {
-				if (!gp) { gp = board[tmp+1].group; groups_same = false; }
-				else if (gp == board[tmp+1].group) groups_same = true;
-			}
-			if (i <= SIZE-2 && board[tmp+SIZE].player == me) {
-				if (!gp) { gp = board[tmp+SIZE].group; groups_same = false; }
-				else if (gp == board[tmp+SIZE].group) groups_same = true;
-			}
-			if (gp && groups_same) {
+			if (go_fills_in_friendly_eye(board, me, i, j)) {
 				continue;
 			}
 		}
@@ -603,33 +620,21 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 
 	// Few moves remaining; look for them
 	int move_count = go_get_legal_plays(st, move_list);
-	if (move_count > 0) {
+	if (move_count > 1) {
 		while (1) {
 			tmp = move_list[RANDI(0, move_count)];
-			// TODO HACK HACK HACK HACK HACK HACK
-			if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
+			if (tmp == MOVE_PASS && st->passes == 1) {
+				// Forbid deliberate losing by passing
+				float score[3];
+				state_score(st, score, false);
+				if (score[me] > score[notme]) {
+					break;
+				}
+			} else if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
 				// Forbid filling in a same group's eye
 				int i = tmp / SIZE;
 				int j = tmp - i * SIZE;
-				bool groups_same = true;
-				group* gp = NULL;
-				if (i >= 1 && board[tmp-SIZE].player == me) {
-					if (!gp) gp = board[tmp-SIZE].group;
-					else if (gp != board[tmp-SIZE].group) groups_same = false;
-				}
-				if (j >= 1 && board[tmp-1].player == me) {
-					if (!gp) gp = board[tmp-1].group;
-					else if (gp != board[tmp-1].group) groups_same = false;
-				}
-				if (j <= SIZE-2 && board[tmp+1].player == me) {
-					if (!gp) gp = board[tmp+1].group;
-					else if (gp != board[tmp+1].group) groups_same = false;
-				}
-				if (i <= SIZE-2 && board[tmp+SIZE].player == me) {
-					if (!gp) gp = board[tmp+SIZE].group;
-					else if (gp != board[tmp+SIZE].group) groups_same = false;
-				}
-				if (!groups_same) {
+				if (!go_fills_in_friendly_eye(board, me, i, j)) {
 					break;
 				}
 			} else {
@@ -637,6 +642,8 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 			}
 		}
 		return go_move_play(st, &tmp);
+	} else if (move_count == 1) {
+		return go_move_play(st, &move_list[0]);
 	}
 
 	return FAIL_OTHER;
