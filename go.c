@@ -192,6 +192,10 @@ wchar_t color_char(color player) {
 	}
 }
 
+color color_opponent(color player) {
+	return (player == BLACK) ? WHITE : BLACK;
+}
+
 wchar_t dot_char(int i, int j, color player) {
 	if ((player == EMPTY) && (is_star_point(i, j))) {
 		return L'•';

@@ -192,7 +192,7 @@ int main(/*int argc, char* argv[]*/) {
 			result = karl_play(st, mv, 200000);
 			dt = timer_now() - t0;
 
-			wprintf(L"Karl's move: %lc ", color_char(st->nextPlayer));
+			wprintf(L"Karl's move: %lc ", color_char(color_opponent(st->nextPlayer)));
 			move_print(mv);
 			wprintf(L"\n");
 
@@ -201,7 +201,7 @@ int main(/*int argc, char* argv[]*/) {
 				return 0;
 			}
 
-			wprintf(L"%lc (Karl) played ", color_char((st->nextPlayer == BLACK) ? WHITE : BLACK));
+			wprintf(L"%lc (Karl) played ", color_char(color_opponent(st->nextPlayer)));
 			move_print(mv);
 			wprintf(L" [%.0Lf ms]\n", dt*1e3);
 

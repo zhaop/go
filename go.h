@@ -67,6 +67,8 @@ typedef int move;
 
 wchar_t color_char(color);
 
+color color_opponent(color);
+
 
 state* state_create();
 
