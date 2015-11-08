@@ -27,7 +27,7 @@ calculate probabilities of winning for each possible next move
 find move with highest probability
 play that move
 */
-play_result karl_play(state* st, move* mv) {
+play_result karl_play(state* st, move* mv, int N) {
 	move legal_moves[COUNT+1];
 	int num_moves = go_get_legal_plays(st, legal_moves);
 
@@ -52,7 +52,6 @@ play_result karl_play(state* st, move* mv) {
 
 	state test_st;
 
-	int N = 10000;
 	for (int i = 0; i < N; ++i) {
 		state_copy(st, &test_st);
 
@@ -81,6 +80,11 @@ play_result karl_play(state* st, move* mv) {
 	move best_move;
 	for (i = 0; i < num_moves; ++i) {
 		pwin[i] = (double) win[i] / (win[i] + lose[i] + 1);
+if (win[i] + lose[i] == 0) {
+			pwin[i] = 0;
+		} else {
+			pwin[i] = (double) win[i] / (win[i] + lose[i]);
+		}
 
 		wprintf(L"Move ");
 		move_print(&legal_moves[i]);
@@ -185,7 +189,7 @@ int main(/*int argc, char* argv[]*/) {
 			}
 
 			t0 = timer_now();
-			result = karl_play(st, mv);
+			result = karl_play(st, mv, 200000);
 			dt = timer_now() - t0;
 
 			wprintf(L"Karl's move: %lc ", color_char(st->nextPlayer));
