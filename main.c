@@ -15,7 +15,7 @@ play_result randy_play(state* st, move* mv) {
 legal_moves = all possible moves
 repeat N times:
 	state2 = make a copy of current state
-	pick one random next move	// TODO can also pick a pass (more likely especially near end game)
+	pick one random next move
 	play random moves until game over
 	if game over:
 		count score according to Chinese rules
@@ -60,18 +60,25 @@ play_result karl_play(state* st, move* mv) {
 		move test_mv = legal_moves[test_idx];
 		go_move_play(&test_st, &test_mv);
 
-		move test_mv2;
+go_is_game_over(&test_st)) {
+			go_move_play_random(&test_st, &test_		move test_mv2;
 		move test_move_list[COUNT+1];
-		while (!go_is_game_over(&test_st)) {
+at time %d\n"		while (!go_is_game_over(&test_st)) {
 			go_move_play_random(&test_st, &test_mv2, test_move_list);
-		}
+score(&test_st, test_score, false);
+		if (test_score[me] > test_score[notme]) {
+			// 		}
 
 		float test_score[3] = {0.0, 0.0, 0.0};
 		state_score(&test_st, test_score, false);
 		if (test_score[me] > test_score[notme]) {
-			++win[test_idx];
+rintf(L"Playout over: Loss recorded for index %d (%d + 1)\n", test_idx, lose[test_idx]);
+			++l			++win[test_idx];
 		} else {
-			++lose[test_idx];
+best_pwin = 0;
+	move best_move;
+	for (i = 0; i < num_moves; ++i) {
+		pwin[i] = (double) win[i] / 			++lose[test_idx];
 		}
 	}
 

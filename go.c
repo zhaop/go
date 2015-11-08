@@ -548,20 +548,90 @@ play_result go_move_play_random(state* st, move* mv, move* move_list) {
 	int timeout = COUNT;	// Heuristics
 	int rand_searches = 0;
 
+	color me = st->nextPlayer;
+	color notme = (me == BLACK) ? WHITE : BLACK;
+	dot* board = st->board;
+
 	do {
 		tmp = RANDI(-1, COUNT);
 		rand_searches++;
-	} while ((rand_searches < timeout) && (go_move_play(st, &tmp) != SUCCESS));
 
-	if (rand_searches < timeout) {
-		*mv = tmp;
-		return SUCCESS;
-	}
+		if (tmp == MOVE_PASS && st->passes == 1) {
+			// Forbid deliberate losing by passing
+			float score[3];
+			state_score(st, score, false);
+			if (score[me] < score[notme]) {
+				continue;
+			}
+		} else if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
+			// Forbid filling in a same group's eye
+			// TODO Also HACK HACK HACK HACK HACK (simplify & make pretty)
+			int i = tmp / SIZE;
+			int j = tmp - i * SIZE;
+			bool groups_same = true;
+			group* gp = NULL;
+			if (i >= 1 && board[tmp-SIZE].player == me) {
+				if (!gp) { gp = board[tmp-SIZE].group; groups_same = false; }
+				else if (gp == board[tmp-SIZE].group) groups_same = true;
+			}
+			if (j >= 1 && board[tmp-1].player == me) {
+				if (!gp) { gp = board[tmp-1].group; groups_same = false; }
+				else if (gp == board[tmp-1].group) groups_same = true;
+			}
+			if (j <= SIZE-2 && board[tmp+1].player == me) {
+				if (!gp) { gp = board[tmp+1].group; groups_same = false; }
+				else if (gp == board[tmp+1].group) groups_same = true;
+			}
+			if (i <= SIZE-2 && board[tmp+SIZE].player == me) {
+				if (!gp) { gp = board[tmp+SIZE].group; groups_same = false; }
+				else if (gp == board[tmp+SIZE].group) groups_same = true;
+			}
+			if (gp && groups_same) {
+				continue;
+			}
+		}
+
+		if (go_move_play(st, &tmp) == SUCCESS) {
+			*mv = tmp;
+			return SUCCESS;
+		}
+	} while (rand_searches < timeout);
 
 	// Few moves remaining; look for them
 	int move_count = go_get_legal_plays(st, move_list);
 	if (move_count > 0) {
-		tmp = move_list[RANDI(0, move_count)];
+		while (1) {
+			tmp = move_list[RANDI(0, move_count)];
+			// TODO HACK HACK HACK HACK HACK HACK
+			if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
+				// Forbid filling in a same group's eye
+				int i = tmp / SIZE;
+				int j = tmp - i * SIZE;
+				bool groups_same = true;
+				group* gp = NULL;
+				if (i >= 1 && board[tmp-SIZE].player == me) {
+					if (!gp) gp = board[tmp-SIZE].group;
+					else if (gp != board[tmp-SIZE].group) groups_same = false;
+				}
+				if (j >= 1 && board[tmp-1].player == me) {
+					if (!gp) gp = board[tmp-1].group;
+					else if (gp != board[tmp-1].group) groups_same = false;
+				}
+				if (j <= SIZE-2 && board[tmp+1].player == me) {
+					if (!gp) gp = board[tmp+1].group;
+					else if (gp != board[tmp+1].group) groups_same = false;
+				}
+				if (i <= SIZE-2 && board[tmp+SIZE].player == me) {
+					if (!gp) gp = board[tmp+SIZE].group;
+					else if (gp != board[tmp+SIZE].group) groups_same = false;
+				}
+				if (!groups_same) {
+					break;
+				}
+			} else {
+				break;
+			}
+		}
 		return go_move_play(st, &tmp);
 	}
 
