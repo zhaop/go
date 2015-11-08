@@ -4,9 +4,9 @@
 #include <stdbool.h>
 
 #define SIZE 9
-#define COUNT SIZE*SIZE
+#define COUNT (SIZE*SIZE)
 
-#define NGROUPS COUNT/2
+#define NGROUPS (COUNT-1)
 
 #define KOMI 6.5
 
