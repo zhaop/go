@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -214,6 +215,18 @@ char index_char(int n) {
 	}
 }
 
+wchar_t float_char(float val) {
+	if (val >= 1.0) {
+		return L'+';
+	} else if (val >= 0.9) {
+		return (int)(val*10) + L'0';
+	} else if (val >= 0.0) {
+		return (int)(val*10) + L'₀';
+	} else {
+		return L'₋';
+	}
+}
+
 // Removes element at index from list given by head_i, returns true if succeeded
 // Element's prev_i & next_i will be in an undefined state
 static inline bool group_list_remove(group** head, group* item) {
@@ -332,6 +345,55 @@ void state_print(state* st) {
 	double dt = timer_now() - t0;
 
 	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f us]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt*1e6);
+}
+
+void state_heatmap_print(state* st, move* moves, double* values, int num_moves) {
+	dot* board = st->board;
+
+	double valboard[COUNT];
+	for (int i = 0; i < COUNT; ++i) {
+		valboard[i] = NAN;
+	}
+	double valpass = 0;
+
+	double minval = INFINITY;
+	double maxval = -INFINITY;
+	for (int i = 0; i < num_moves; ++i) {
+		if (moves[i] == MOVE_PASS) {
+			valpass = values[i];
+			continue;
+		}
+
+		valboard[moves[i]] = values[i];
+		minval = fmin(minval, values[i]);
+		maxval = fmax(maxval, values[i]);
+	}
+
+	wprintf(L"Between %.1f%% and %.1f%% (50%% is %lc)\n", minval*100, maxval*100, float_char((0.5 - minval) / (maxval - minval) ));
+
+	wprintf(L"   ");
+	for (int i = 0; i < SIZE; ++i) {
+		wprintf(L"%c ", index_char(i));
+	}
+	wprintf(L"\n   ");
+	for (int i = 0; i < SIZE; ++i) {
+		wprintf(L"  ");
+	}
+	wprintf(L"(-- %lc)", float_char( (valpass - minval) / (maxval - minval)));
+	for (int i = 0; i < SIZE; ++i) {
+		wprintf(L"\n%c  ", index_char(i));
+		for (int j = 0; j < SIZE; ++j) {
+			if (!isnan(valboard[i*SIZE+j])) {
+				wprintf(L"%lc%c",
+					float_char( (valboard[i*SIZE+j] - minval) / (maxval - minval)),
+					(BOARD(i, j).player == EMPTY) ? ' ' : '*');
+			} else {
+				wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
+			}
+		}
+	}
+
+	wprintf(L"\n\n");
 }
 
 // Debug info about groups & ko

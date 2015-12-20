@@ -86,15 +86,19 @@ play_result karl_play(state* st, move* mv, int N) {
 			pwin[i] = (double) win[i] / (win[i] + lose[i]);
 		}
 
-		wprintf(L"Move ");
-		move_print(&legal_moves[i]);
-		wprintf(L": +%d, -%d => %.1f%%\n", win[i], lose[i], pwin[i]*100);
+		// wprintf(L"Move ");
+		// move_print(&legal_moves[i]);
+		// wprintf(L": +%d, -%d => %.1f%%\n", win[i], lose[i], pwin[i]*100);
 
 		if (pwin[i] > best_pwin) {
 			best_pwin = pwin[i];
 			best_pwin_move = legal_moves[i];
 		};
 	}
+
+	wprintf(L"\n\nDecision heatmap\n");
+	state_heatmap_print(st, legal_moves, pwin, num_moves);
+
 	wprintf(L"Going with ");
 	move_print(&best_pwin_move);
 	wprintf(L" at %.1f%%\n", best_pwin*100);

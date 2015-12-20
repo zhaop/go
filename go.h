@@ -80,6 +80,8 @@ void state_destroy(state*);
 
 void state_print(state*);
 
+void state_heatmap_print(state*, move*, double*, int);
+
 void state_score(state*, float score[3], bool);
 
 
