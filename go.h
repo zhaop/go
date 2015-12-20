@@ -74,8 +74,6 @@ state* state_create();
 
 void state_copy(state*, state*);
 
-void state_destroy_children(state*);
-
 void state_destroy(state*);
 
 void state_print(state*);

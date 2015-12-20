@@ -92,6 +92,7 @@ void state_destroy(state* st) {
 #define DOWN_OK  (i <= SIZE-2)
 
 // Recursively update the territory struct until all accounted for
+// Uses a strange flood fill algorithm
 void count_territory(dot* board, bool* already_counted, int i, int j, territory* tr) {
 	color neighbor_player;
 
@@ -215,7 +216,7 @@ char index_char(int n) {
 	}
 }
 
-wchar_t float_char(float val) {
+wchar_t heatmap_char(float val) {
 	if (val >= 1.0) {
 		return L'+';
 	} else if (val >= 0.9) {
@@ -369,7 +370,7 @@ void state_heatmap_print(state* st, move* moves, double* values, int num_moves) 
 		maxval = fmax(maxval, values[i]);
 	}
 
-	wprintf(L"Between %.1f%% and %.1f%% (50%% is %lc)\n", minval*100, maxval*100, float_char((0.5 - minval) / (maxval - minval) ));
+	wprintf(L"Between %.1f%% and %.1f%% (50%% is %lc)\n", minval*100, maxval*100, heatmap_char((0.5 - minval) / (maxval - minval) ));
 
 	wprintf(L"   ");
 	for (int i = 0; i < SIZE; ++i) {
@@ -379,13 +380,13 @@ void state_heatmap_print(state* st, move* moves, double* values, int num_moves) 
 	for (int i = 0; i < SIZE; ++i) {
 		wprintf(L"  ");
 	}
-	wprintf(L"(-- %lc)", float_char( (valpass - minval) / (maxval - minval)));
+	wprintf(L"(-- %lc)", heatmap_char( (valpass - minval) / (maxval - minval)));
 	for (int i = 0; i < SIZE; ++i) {
 		wprintf(L"\n%c  ", index_char(i));
 		for (int j = 0; j < SIZE; ++j) {
 			if (!isnan(valboard[i*SIZE+j])) {
 				wprintf(L"%lc%c",
-					float_char( (valboard[i*SIZE+j] - minval) / (maxval - minval)),
+					heatmap_char( (valboard[i*SIZE+j] - minval) / (maxval - minval)),
 					(BOARD(i, j).player == EMPTY) ? ' ' : '*');
 			} else {
 				wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
