@@ -8,7 +8,7 @@
 
 #define NGROUPS (COUNT-1)
 
-#define KOMI 6.5
+#define KOMI (6.5)
 
 #define NO_POSSIBLE_KO -1
 #define MOVE_PASS -1
