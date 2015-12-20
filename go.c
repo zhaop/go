@@ -204,7 +204,7 @@ wchar_t dot_char(int i, int j, color player) {
 	}
 }
 
-char int_char(int n) {
+char index_char(int n) {
 	if (n < 10) {
 		return n + '0';
 	} else if (n < 36) {
@@ -304,7 +304,7 @@ void state_print(state* st) {
 
 	wprintf(L"   ");
 	for (int i = 0; i < SIZE; ++i) {
-		wprintf(L"%c ", int_char(i));
+		wprintf(L"%c ", index_char(i));
 	}
 	wprintf(L"\n   ");
 	for (int i = 0; i < SIZE; ++i) {
@@ -319,7 +319,7 @@ void state_print(state* st) {
 		wprintf(L" (game ended)");
 	}
 	for (int i = 0; i < SIZE; ++i) {
-		wprintf(L"\n%c  ", int_char(i));
+		wprintf(L"\n%c  ", index_char(i));
 		for (int j = 0; j < SIZE; ++j) {
 			wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
 		}
@@ -514,7 +514,7 @@ void move_sprint(wchar_t str[3], move* mv) {
 
 	int i = *mv/SIZE;
 	int j = *mv%SIZE;
-	swprintf(str, 3, L"%c%c", int_char(i), int_char(j));
+	swprintf(str, 3, L"%c%c", index_char(i), index_char(j));
 }
 
 void move_print(move* mv) {
