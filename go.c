@@ -7,6 +7,382 @@
 #include "go.h"
 #include "utils.h"
 
+#define ALREADY_COUNTED(i, j) already_counted[(i)*SIZE+(j)]
+#define BOARD(i,j) (board[(i)*SIZE+(j)])
+#define GROUP_AT(i,j) (BOARD(i, j).group)
+#define UP_OK    (i >= 1)
+#define LEFT_OK  (j >= 1)
+#define RIGHT_OK (j <= SIZE-2)
+#define DOWN_OK  (i <= SIZE-2)
+
+
+wchar_t color_char(color player) {
+	if (player == BLACK) {
+		return L'⭘';
+	} else if (player == WHITE) {
+		return L'🌑';
+	} else {
+		return L'·';
+	}
+}
+
+color color_opponent(color player) {
+	return (player == BLACK) ? WHITE : BLACK;
+}
+
+
+char index_char(int n) {
+	if (n < 10) {
+		return n + '0';
+	} else if (n < 36) {
+		return (n - 10) + 'a';
+	} else {
+		return (n - 36) + 'A';
+	}
+}
+
+// Returns a positive number, or -1 if invalid character
+static inline int char_index(char c) {
+	if (c >= 'a' && c <= 'z') {
+		return (c - 'a' + 10);
+	} else if (c >= 'A' && c <= 'z') {
+		return (c - 'A' + 36);
+	} else if (c >= '0' && c <= '9') {
+		return (c - '0');
+	} else {
+		return -1;
+	}
+}
+
+bool is_star_point(int i, int j) {
+	switch (SIZE) {
+		case 9 :
+			return ((i == 2) || (i == 4) || (i == 6)) && ((j == 2) || (j == 4) || (j == 6));
+			break;
+		case 13 :
+			return ((i == 3) || (i == 6) || (i == 9)) && ((j == 3) || (j == 6) || (j == 9));
+			break;
+		case 19 :
+			return ((i == 3) || (i == 9) || (i == 15)) && ((j == 3) || (j == 9) || (j == 15));
+			break;
+	}
+	return false;
+}
+
+wchar_t dot_char(int i, int j, color player) {
+	if ((player == EMPTY) && (is_star_point(i, j))) {
+		return L'•';
+	} else {
+		return color_char(player);
+	}
+}
+
+wchar_t heatmap_char(float val) {
+	if (val >= 1.0) {
+		return L'+';
+	} else if (val >= 0.9) {
+		return (int)(val*10) + L'0';
+	} else if (val >= 0.0) {
+		return (int)(val*10) + L'₀';
+	} else {
+		return L'₋';
+	}
+}
+
+
+
+move* move_create() {
+	move* mv;
+	if (!(mv = (move*)malloc(sizeof(move)))) {
+		return NULL;
+	}
+	return mv;
+}
+
+void move_destroy(move* mv) {
+	free(mv);
+}
+
+// Returns whether move correctly parsed
+bool move_parse(move* mv, char str[2]) {
+	if (str[0] == '-' && str[1] == '-') {
+		*mv = MOVE_PASS;
+		return true;
+	}
+
+	int i = char_index(str[0]);
+	int j = char_index(str[1]);
+	if (i < 0 || i >= SIZE || j < 0 || j >= SIZE) {
+		return false;
+	}
+
+	*mv = i * SIZE + j;
+	return true;
+}
+
+// str must be a wchar_t[3]
+void move_sprint(wchar_t str[3], move* mv) {
+	if (*mv == MOVE_PASS) {
+		swprintf(str, 3, L"--");
+		return;
+	}
+
+	int i = *mv/SIZE;
+	int j = *mv%SIZE;
+	swprintf(str, 3, L"%c%c", index_char(i), index_char(j));
+}
+
+void move_print(move* mv) {
+	wchar_t str[3];
+	move_sprint(str, mv);
+	wprintf(str);
+}
+
+
+// Change freedoms for neighboring groups of given color
+MANUAL_INLINE /*void change_neighbors_freedoms(dot* board, int i, int j, int delta) {
+	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms += delta;
+	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms += delta;
+	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms += delta;
+	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms += delta;
+}*/
+
+// Change freedoms for neighboring groups of given color
+MANUAL_INLINE /*void change_neighbors_freedoms_if_specific_color(dot* board, color player, int i, int j, int delta) {
+	if (UP_OK    && BOARD(i-1, j).player == player) GROUP_AT(i-1, j).freedoms += delta;
+	if (LEFT_OK  && BOARD(i, j-1).player == player) GROUP_AT(i, j-1).freedoms += delta;
+	if (RIGHT_OK && BOARD(i, j+1).player == player) GROUP_AT(i, j+1).freedoms += delta;
+	if (DOWN_OK  && BOARD(i+1, j).player == player) GROUP_AT(i+1, j).freedoms += delta;
+}*/
+
+
+static inline void stone_init(dot* stone, color player, group* gp) {
+	stone->player = player;
+	stone->group = gp;
+}
+
+// (Re-)initialize a piece of memory as a lone group
+void group_init(group* gp, dot* head, int freedoms) {
+	gp->head = head;
+	gp->length = 1;
+	gp->freedoms = freedoms;
+}
+
+// Removes element at index from list given by head_i, returns true if succeeded
+// Element's prev_i & next_i will be in an undefined state
+static inline bool group_list_remove(group** head, group* item) {
+	group* prev = item->prev;
+	group* next = item->next;
+	if (item == prev || item == next) {
+		if (item == prev && item == next) {
+			*head = NULL;
+		} else {
+			wprintf(L"Error: Group pool has data inconsistency\n");	// TODO Still necessary?
+			return false;
+		}
+	} else {
+		prev->next = item->next;
+		next->prev = item->prev;
+		*head = item->next;
+	}
+	return true;
+}
+
+static inline void group_list_insert(group** head, group* item) {
+	if (*head == NULL) {
+		*head = item;
+		item->prev = item;
+		item->next = item;
+	} else {
+		item->prev = (*head)->prev;
+		item->next = (*head);
+		(*head)->prev->next = item;
+		(*head)->prev = item;
+	}
+}
+
+// Remember to call group_init after borrowing a group from the pool
+group* group_pool_borrow(group_pool* pool) {
+	if (pool->free == NULL) {
+		return NULL;
+	}
+
+	group* item = pool->free;
+	if (!group_list_remove(&pool->free, item)) {
+		return NULL;
+	}
+
+	group_list_insert(&pool->used, item);
+
+	return item;
+}
+
+bool group_pool_return(group_pool* pool, group* item) {
+	if (!group_list_remove(&pool->used, item)) {
+		return false;
+	}
+
+	group_list_insert(&pool->free, item);
+
+	return true;
+}
+
+void group_dump(group* gp) {
+	dot* head = gp->head;
+
+	wchar_t str[3];
+	move_sprint(str, &head->i);
+	wprintf(L"Group %lc {head: %ls, length: %d, freedoms: %d, list: ", color_char(head->player), str, gp->length, gp->freedoms);
+
+	dot* stone = head;
+	do {
+		move_print(&stone->i);
+		wprintf(L"->");
+		stone = stone->next;
+	} while (stone != head);
+
+	wprintf(L"}\n");
+}
+
+// Stone must already be set on board
+// Assumes linked list never empty
+static inline void group_add_stone(group* gp, dot* stone, int liberties) {
+	dot* head = gp->head;
+	dot* tail = head->prev;
+
+	stone->prev = tail;
+	stone->next = head;
+	tail->next = stone;
+	head->prev = stone;
+
+	++gp->length;
+	gp->freedoms += liberties;
+}
+
+// Merges smaller group into bigger, and returns the latter
+// DO NOT have any references to these groups prior to call (one is destroyed)
+group* group_merge_and_destroy_smaller(group_pool* pool, group* gp1, group* gp2) {
+	if (gp1 == gp2) {
+		return gp1;
+	}
+
+	if (gp1->length < gp2->length) {
+		group* tmp = gp1;
+		gp1 = gp2;
+		gp2 = tmp;
+	}
+
+	dot* head1 = gp1->head;
+	dot* head2 = gp2->head;
+
+	dot* stone = head2;
+	do {
+		stone->group = gp1;
+		stone = stone->next;
+	} while (stone != head2);
+
+	dot* tail1 = head1->prev;
+	dot* tail2 = head2->prev;
+
+	head1->prev = tail2;
+	tail1->next = head2;
+	head2->prev = tail1;
+	tail2->next = head1;
+
+	gp1->length += gp2->length;
+	gp1->freedoms += gp2->freedoms;
+
+	group_pool_return(pool, gp2);
+
+	return gp1;
+}
+
+// Removes all of a group's stones from the board, returns number captured
+// Caller must destroy gp afterwards
+int group_kill_stones(dot* board, group* gp) {
+	int captured = 0;
+	dot* head = gp->head;
+	color enemy = (head->player == BLACK) ? WHITE : BLACK;
+
+	dot* stone = head;
+	do {
+		dot* tmp_next = stone->next;
+
+		int i = stone->i / SIZE;
+		int j = stone->i - i * SIZE;
+		++captured;
+
+		// change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);	// Manually inlined below
+		if (UP_OK    && BOARD(i-1, j).player == enemy) GROUP_AT(i-1, j)->freedoms++;
+		if (LEFT_OK  && BOARD(i, j-1).player == enemy) GROUP_AT(i, j-1)->freedoms++;
+		if (RIGHT_OK && BOARD(i, j+1).player == enemy) GROUP_AT(i, j+1)->freedoms++;
+		if (DOWN_OK  && BOARD(i+1, j).player == enemy) GROUP_AT(i+1, j)->freedoms++;
+
+		stone->player = EMPTY;
+		stone->group = NULL;
+		stone->prev = NULL;
+		stone->next = NULL;
+
+		stone = tmp_next;
+	} while (stone != head);
+
+	return captured;
+}
+
+// Recursively update the territory struct until all accounted for
+// Uses a strange flood fill algorithm
+void count_territory(dot* board, bool* already_counted, int i, int j, territory* tr) {
+	color neighbor_player;
+
+	ALREADY_COUNTED(i, j) = true;
+	++tr->area;
+
+	if (UP_OK && !ALREADY_COUNTED(i-1, j)) {
+		neighbor_player = BOARD(i-1, j).player;
+		if (neighbor_player == EMPTY) {
+			count_territory(board, already_counted, i-1, j, tr);
+		} else if (tr->player == EMPTY) {
+			tr->player = neighbor_player;
+		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
+			tr->player = NEUTRAL;
+		}
+	}
+
+	if (LEFT_OK && !ALREADY_COUNTED(i, j-1)) {
+		neighbor_player = BOARD(i, j-1).player;
+		if (neighbor_player == EMPTY) {
+			count_territory(board, already_counted, i, j-1, tr);
+		} else if (tr->player == EMPTY) {
+			tr->player = neighbor_player;
+		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
+			tr->player = NEUTRAL;
+		}
+	}
+
+	if (RIGHT_OK && !ALREADY_COUNTED(i, j+1)) {
+		neighbor_player = BOARD(i, j+1).player;
+		if (neighbor_player == EMPTY) {
+			count_territory(board, already_counted, i, j+1, tr);
+		} else if (tr->player == EMPTY) {
+			tr->player = neighbor_player;
+		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
+			tr->player = NEUTRAL;
+		}
+	}
+
+	if (DOWN_OK && !ALREADY_COUNTED(i+1, j)) {
+		neighbor_player = BOARD(i+1, j).player;
+		if (neighbor_player == EMPTY) {
+			count_territory(board, already_counted, i+1, j, tr);
+		} else if (tr->player == EMPTY) {
+			tr->player = neighbor_player;
+		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
+			tr->player = NEUTRAL;
+		}
+	}
+}
+
+
 // Malloc & init a state
 state* state_create() {
 	state* st;
@@ -83,233 +459,6 @@ void state_destroy(state* st) {
 	free(st);
 }
 
-#define ALREADY_COUNTED(i, j) already_counted[(i)*SIZE+(j)]
-#define BOARD(i,j) (board[(i)*SIZE+(j)])
-#define GROUP_AT(i,j) (BOARD(i, j).group)
-#define UP_OK    (i >= 1)
-#define LEFT_OK  (j >= 1)
-#define RIGHT_OK (j <= SIZE-2)
-#define DOWN_OK  (i <= SIZE-2)
-
-// Recursively update the territory struct until all accounted for
-// Uses a strange flood fill algorithm
-void count_territory(dot* board, bool* already_counted, int i, int j, territory* tr) {
-	color neighbor_player;
-
-	ALREADY_COUNTED(i, j) = true;
-	++tr->area;
-
-	if (UP_OK && !ALREADY_COUNTED(i-1, j)) {
-		neighbor_player = BOARD(i-1, j).player;
-		if (neighbor_player == EMPTY) {
-			count_territory(board, already_counted, i-1, j, tr);
-		} else if (tr->player == EMPTY) {
-			tr->player = neighbor_player;
-		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
-			tr->player = NEUTRAL;
-		}
-	}
-
-	if (LEFT_OK && !ALREADY_COUNTED(i, j-1)) {
-		neighbor_player = BOARD(i, j-1).player;
-		if (neighbor_player == EMPTY) {
-			count_territory(board, already_counted, i, j-1, tr);
-		} else if (tr->player == EMPTY) {
-			tr->player = neighbor_player;
-		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
-			tr->player = NEUTRAL;
-		}
-	}
-
-	if (RIGHT_OK && !ALREADY_COUNTED(i, j+1)) {
-		neighbor_player = BOARD(i, j+1).player;
-		if (neighbor_player == EMPTY) {
-			count_territory(board, already_counted, i, j+1, tr);
-		} else if (tr->player == EMPTY) {
-			tr->player = neighbor_player;
-		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
-			tr->player = NEUTRAL;
-		}
-	}
-
-	if (DOWN_OK && !ALREADY_COUNTED(i+1, j)) {
-		neighbor_player = BOARD(i+1, j).player;
-		if (neighbor_player == EMPTY) {
-			count_territory(board, already_counted, i+1, j, tr);
-		} else if (tr->player == EMPTY) {
-			tr->player = neighbor_player;
-		} else if (tr->player == NEUTRAL || tr->player != neighbor_player) {
-			tr->player = NEUTRAL;
-		}
-	}
-}
-
-// Score must be a float array[3]
-void state_score(state* st, float* score, bool chinese_rules) {
-	dot* board = st->board;
-
-	score[BLACK] = st->prisoners[BLACK];
-	score[WHITE] = st->prisoners[WHITE] + KOMI;
-
-	bool already_counted[COUNT];
-	memset(already_counted, (int) false, sizeof(bool) * COUNT);
-
-	for (int i = 0; i < SIZE; ++i) {
-		for (int j = 0; j < SIZE; ++j) {
-			if (!already_counted[i*SIZE+j] && BOARD(i, j).player == EMPTY) {
-				territory tr = {EMPTY, 0};
-				count_territory(board, already_counted, i, j, &tr);
-				if (tr.player == BLACK || tr.player == WHITE) {
-					score[tr.player] += tr.area;
-				}
-			} else if (chinese_rules && BOARD(i, j).player != EMPTY) {
-				++score[BOARD(i, j).player];
-			}
-		}
-	}
-}
-
-bool is_star_point(int i, int j) {
-	switch (SIZE) {
-		case 9 :
-			return ((i == 2) || (i == 4) || (i == 6)) && ((j == 2) || (j == 4) || (j == 6));
-			break;
-		case 13 :
-			return ((i == 3) || (i == 6) || (i == 9)) && ((j == 3) || (j == 6) || (j == 9));
-			break;
-		case 19 :
-			return ((i == 3) || (i == 9) || (i == 15)) && ((j == 3) || (j == 9) || (j == 15));
-			break;
-	}
-	return false;
-}
-
-wchar_t color_char(color player) {
-	if (player == BLACK) {
-		return L'⭘';
-	} else if (player == WHITE) {
-		return L'🌑';
-	} else {
-		return L'·';
-	}
-}
-
-color color_opponent(color player) {
-	return (player == BLACK) ? WHITE : BLACK;
-}
-
-wchar_t dot_char(int i, int j, color player) {
-	if ((player == EMPTY) && (is_star_point(i, j))) {
-		return L'•';
-	} else {
-		return color_char(player);
-	}
-}
-
-char index_char(int n) {
-	if (n < 10) {
-		return n + '0';
-	} else if (n < 36) {
-		return (n - 10) + 'a';
-	} else {
-		return (n - 36) + 'A';
-	}
-}
-
-wchar_t heatmap_char(float val) {
-	if (val >= 1.0) {
-		return L'+';
-	} else if (val >= 0.9) {
-		return (int)(val*10) + L'0';
-	} else if (val >= 0.0) {
-		return (int)(val*10) + L'₀';
-	} else {
-		return L'₋';
-	}
-}
-
-// Removes element at index from list given by head_i, returns true if succeeded
-// Element's prev_i & next_i will be in an undefined state
-static inline bool group_list_remove(group** head, group* item) {
-	group* prev = item->prev;
-	group* next = item->next;
-	if (item == prev || item == next) {
-		if (item == prev && item == next) {
-			*head = NULL;
-		} else {
-			wprintf(L"Error: Group pool has data inconsistency\n");	// TODO Still necessary?
-			return false;
-		}
-	} else {
-		prev->next = item->next;
-		next->prev = item->prev;
-		*head = item->next;
-	}
-	return true;
-}
-
-void group_init(group* gp, dot* head, int freedoms) {
-	gp->head = head;
-	gp->length = 1;
-	gp->freedoms = freedoms;
-}
-
-static inline void group_list_insert(group** head, group* item) {
-	if (*head == NULL) {
-		*head = item;
-		item->prev = item;
-		item->next = item;
-	} else {
-		item->prev = (*head)->prev;
-		item->next = (*head);
-		(*head)->prev->next = item;
-		(*head)->prev = item;
-	}
-}
-
-// Remember to call group_init after borrowing a group from the pool
-group* group_pool_borrow(group_pool* pool) {
-	if (pool->free == NULL) {
-		return NULL;
-	}
-
-	group* item = pool->free;
-	if (!group_list_remove(&pool->free, item)) {
-		return NULL;
-	}
-
-	group_list_insert(&pool->used, item);
-
-	return item;
-}
-
-bool group_pool_return(group_pool* pool, group* item) {
-	if (!group_list_remove(&pool->used, item)) {
-		return false;
-	}
-
-	group_list_insert(&pool->free, item);
-
-	return true;
-}
-
-void group_dump(group* gp) {
-	dot* head = gp->head;
-
-	wchar_t str[3];
-	move_sprint(str, &head->i);
-	wprintf(L"Group %lc {head: %ls, length: %d, freedoms: %d, list: ", color_char(head->player), str, gp->length, gp->freedoms);
-
-	dot* stone = head;
-	do {
-		move_print(&stone->i);
-		wprintf(L"->");
-		stone = stone->next;
-	} while (stone != head);
-
-	wprintf(L"}\n");
-}
-
 void state_print(state* st) {
 	color nextPlayer = st->nextPlayer;
 	color enemy = (st->nextPlayer == BLACK) ? WHITE : BLACK;
@@ -348,55 +497,6 @@ void state_print(state* st) {
 	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f us]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt*1e6);
 }
 
-void state_heatmap_print(state* st, move* moves, double* values, int num_moves) {
-	dot* board = st->board;
-
-	double valboard[COUNT];
-	for (int i = 0; i < COUNT; ++i) {
-		valboard[i] = NAN;
-	}
-	double valpass = 0;
-
-	double minval = INFINITY;
-	double maxval = -INFINITY;
-	for (int i = 0; i < num_moves; ++i) {
-		if (moves[i] == MOVE_PASS) {
-			valpass = values[i];
-			continue;
-		}
-
-		valboard[moves[i]] = values[i];
-		minval = fmin(minval, values[i]);
-		maxval = fmax(maxval, values[i]);
-	}
-
-	wprintf(L"Between %.1f%% and %.1f%% (50%% is %lc)\n", minval*100, maxval*100, heatmap_char((0.5 - minval) / (maxval - minval) ));
-
-	wprintf(L"   ");
-	for (int i = 0; i < SIZE; ++i) {
-		wprintf(L"%c ", index_char(i));
-	}
-	wprintf(L"\n   ");
-	for (int i = 0; i < SIZE; ++i) {
-		wprintf(L"  ");
-	}
-	wprintf(L"(-- %lc)", heatmap_char( (valpass - minval) / (maxval - minval)));
-	for (int i = 0; i < SIZE; ++i) {
-		wprintf(L"\n%c  ", index_char(i));
-		for (int j = 0; j < SIZE; ++j) {
-			if (!isnan(valboard[i*SIZE+j])) {
-				wprintf(L"%lc%c",
-					heatmap_char( (valboard[i*SIZE+j] - minval) / (maxval - minval)),
-					(BOARD(i, j).player == EMPTY) ? ' ' : '*');
-			} else {
-				wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
-			}
-		}
-	}
-
-	wprintf(L"\n\n");
-}
-
 // Debug info about groups & ko
 void state_dump(state* st) {
 	dot* board = st->board;
@@ -420,197 +520,34 @@ void state_dump(state* st) {
 	wprintf(L"Dumping groups took [%.3f us]\n", dt*1e6);
 }
 
-static inline void stone_init(dot* stone, color player, group* gp) {
-	stone->player = player;
-	stone->group = gp;
-}
+// Score must be a float array[3]
+void state_score(state* st, float* score, bool chinese_rules) {
+	dot* board = st->board;
 
-// Stone must already be set on board
-// Assumes linked list never empty
-static inline void group_add_stone(group* gp, dot* stone, int liberties) {
-	dot* head = gp->head;
-	dot* tail = head->prev;
+	score[BLACK] = st->prisoners[BLACK];
+	score[WHITE] = st->prisoners[WHITE] + KOMI;
 
-	stone->prev = tail;
-	stone->next = head;
-	tail->next = stone;
-	head->prev = stone;
+	bool already_counted[COUNT];
+	memset(already_counted, (int) false, sizeof(bool) * COUNT);
 
-	++gp->length;
-	gp->freedoms += liberties;
-}
-
-// Merges smaller group into bigger, and returns the latter
-// DO NOT have any references to these groups prior to call (one is destroyed)
-group* group_merge_and_destroy_smaller(group_pool* pool, group* gp1, group* gp2) {
-	if (gp1 == gp2) {
-		return gp1;
-	}
-
-	if (gp1->length < gp2->length) {
-		group* tmp = gp1;
-		gp1 = gp2;
-		gp2 = tmp;
-	}
-
-	dot* head1 = gp1->head;
-	dot* head2 = gp2->head;
-
-	dot* stone = head2;
-	do {
-		stone->group = gp1;
-		stone = stone->next;
-	} while (stone != head2);
-
-	dot* tail1 = head1->prev;
-	dot* tail2 = head2->prev;
-
-	head1->prev = tail2;
-	tail1->next = head2;
-	head2->prev = tail1;
-	tail2->next = head1;
-
-	gp1->length += gp2->length;
-	gp1->freedoms += gp2->freedoms;
-
-	group_pool_return(pool, gp2);
-
-	return gp1;
-}
-
-// Change freedoms for neighboring groups of given color
-MANUAL_INLINE /*void change_neighbors_freedoms(dot* board, int i, int j, int delta) {
-	if (UP_OK    && BOARD(i-1, j).player != EMPTY) GROUP_AT(i-1, j).freedoms += delta;
-	if (LEFT_OK  && BOARD(i, j-1).player != EMPTY) GROUP_AT(i, j-1).freedoms += delta;
-	if (RIGHT_OK && BOARD(i, j+1).player != EMPTY) GROUP_AT(i, j+1).freedoms += delta;
-	if (DOWN_OK  && BOARD(i+1, j).player != EMPTY) GROUP_AT(i+1, j).freedoms += delta;
-}*/
-
-// Change freedoms for neighboring groups of given color
-MANUAL_INLINE /*void change_neighbors_freedoms_if_specific_color(dot* board, color player, int i, int j, int delta) {
-	if (UP_OK    && BOARD(i-1, j).player == player) GROUP_AT(i-1, j).freedoms += delta;
-	if (LEFT_OK  && BOARD(i, j-1).player == player) GROUP_AT(i, j-1).freedoms += delta;
-	if (RIGHT_OK && BOARD(i, j+1).player == player) GROUP_AT(i, j+1).freedoms += delta;
-	if (DOWN_OK  && BOARD(i+1, j).player == player) GROUP_AT(i+1, j).freedoms += delta;
-}*/
-
-// Removes all of a group's stones from the board, returns number captured
-// Caller must destroy gp afterwards
-int group_kill_stones(dot* board, group* gp) {
-	int captured = 0;
-	dot* head = gp->head;
-	color enemy = (head->player == BLACK) ? WHITE : BLACK;
-
-	dot* stone = head;
-	do {
-		dot* tmp_next = stone->next;
-
-		int i = stone->i / SIZE;
-		int j = stone->i - i * SIZE;
-		++captured;
-
-		// change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);	// Manually inlined below
-		if (UP_OK    && BOARD(i-1, j).player == enemy) GROUP_AT(i-1, j)->freedoms++;
-		if (LEFT_OK  && BOARD(i, j-1).player == enemy) GROUP_AT(i, j-1)->freedoms++;
-		if (RIGHT_OK && BOARD(i, j+1).player == enemy) GROUP_AT(i, j+1)->freedoms++;
-		if (DOWN_OK  && BOARD(i+1, j).player == enemy) GROUP_AT(i+1, j)->freedoms++;
-
-		stone->player = EMPTY;
-		stone->group = NULL;
-		stone->prev = NULL;
-		stone->next = NULL;
-
-		stone = tmp_next;
-	} while (stone != head);
-
-	return captured;
-}
-
-move* move_create() {
-	move* mv;
-	if (!(mv = (move*)malloc(sizeof(move)))) {
-		return NULL;
-	}
-	return mv;
-}
-
-void move_destroy(move* mv) {
-	free(mv);
-}
-
-// Returns a positive number, or -1 if invalid character
-static inline int move_parse_char(char c) {
-	if (c >= 'a' && c <= 'z') {
-		return (c - 'a' + 10);
-	} else if (c >= 'A' && c <= 'z') {
-		return (c - 'A' + 36);
-	} else if (c >= '0' && c <= '9') {
-		return (c - '0');
-	} else {
-		return -1;
-	}
-}
-
-// Returns whether move correctly parsed
-bool move_parse(move* mv, char str[2]) {
-	if (str[0] == '-' && str[1] == '-') {
-		*mv = MOVE_PASS;
-		return true;
-	}
-
-	int i = move_parse_char(str[0]);
-	int j = move_parse_char(str[1]);
-	if (i < 0 || i >= SIZE || j < 0 || j >= SIZE) {
-		return false;
-	}
-
-	*mv = i * SIZE + j;
-	return true;
-}
-
-// str must be a wchar_t[3]
-void move_sprint(wchar_t str[3], move* mv) {
-	if (*mv == MOVE_PASS) {
-		swprintf(str, 3, L"--");
-		return;
-	}
-
-	int i = *mv/SIZE;
-	int j = *mv%SIZE;
-	swprintf(str, 3, L"%c%c", index_char(i), index_char(j));
-}
-
-void move_print(move* mv) {
-	wchar_t str[3];
-	move_sprint(str, mv);
-	wprintf(str);
-}
-
-// Param move_list must be move[COUNT+1]
-// Returns number of possible moves
-int go_get_legal_plays(state* st, move* move_list) {
-	int num = 0;
-
-	if (go_is_game_over(st)) {
-		return 0;
-	}
-
-	move_list[num] = MOVE_PASS;
-	++num;
-
-	move mv;
-	for (int i = 0; i < COUNT; ++i) {
-		mv = i;
-		if (go_move_legal(st, &mv)) {
-			move_list[num] = mv;
-			++num;
+	for (int i = 0; i < SIZE; ++i) {
+		for (int j = 0; j < SIZE; ++j) {
+			if (!already_counted[i*SIZE+j] && BOARD(i, j).player == EMPTY) {
+				territory tr = {EMPTY, 0};
+				count_territory(board, already_counted, i, j, &tr);
+				if (tr.player == BLACK || tr.player == WHITE) {
+					score[tr.player] += tr.area;
+				}
+			} else if (chinese_rules && BOARD(i, j).player != EMPTY) {
+				++score[BOARD(i, j).player];
+			}
 		}
 	}
-	return num;
 }
 
+
 // A friendly eye is filled if and only if all four neighbors are the same friendly group or edge
-bool go_fills_in_friendly_eye(dot* board, color friendly, int i, int j) {
+bool fills_in_friendly_eye(dot* board, color friendly, int i, int j) {
 	dot* stone;
 	group* gp = NULL;
 
@@ -643,73 +580,6 @@ bool go_fills_in_friendly_eye(dot* board, color friendly, int i, int j) {
 	}
 
 	return true;
-}
-
-// Plays a random move & stores it in mv
-play_result go_move_play_random(state* st, move* mv, move* move_list) {
-	move tmp;
-	int timeout = COUNT;	// Heuristics
-	int rand_searches = 0;
-
-	color me = st->nextPlayer;
-	color notme = (me == BLACK) ? WHITE : BLACK;
-	dot* board = st->board;
-
-	do {
-		tmp = RANDI(-1, COUNT);
-		rand_searches++;
-
-		if (tmp == MOVE_PASS && st->passes == 1) {
-			// Forbid deliberate losing by passing
-			float score[3];
-			state_score(st, score, false);
-			if (score[me] < score[notme]) {
-				continue;
-			}
-		} else if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
-			// Forbid filling in a same group's eye
-			int i = tmp / SIZE;
-			int j = tmp - i * SIZE;
-			if (go_fills_in_friendly_eye(board, me, i, j)) {
-				continue;
-			}
-		}
-
-		if (go_move_play(st, &tmp) == SUCCESS) {
-			*mv = tmp;
-			return SUCCESS;
-		}
-	} while (rand_searches < timeout);
-
-	// Few moves remaining; look for them
-	int move_count = go_get_legal_plays(st, move_list);
-	if (move_count > 1) {
-		while (1) {
-			tmp = move_list[RANDI(0, move_count)];
-			if (tmp == MOVE_PASS && st->passes == 1) {
-				// Forbid deliberate losing by passing
-				float score[3];
-				state_score(st, score, false);
-				if (score[me] > score[notme]) {
-					break;
-				}
-			} else if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
-				// Forbid filling in a same group's eye
-				int i = tmp / SIZE;
-				int j = tmp - i * SIZE;
-				if (!go_fills_in_friendly_eye(board, me, i, j)) {
-					break;
-				}
-			} else {
-				break;
-			}
-		}
-		return go_move_play(st, &tmp);
-	} else if (move_count == 1) {
-		return go_move_play(st, &move_list[0]);
-	}
-
-	return FAIL_OTHER;
 }
 
 // True if ko rule forbids move
@@ -815,8 +685,13 @@ static inline void merge_with_every_friendly(dot* board, group_pool* pool, color
 	}
 }
 
+
+bool go_is_game_over(state* st) {
+	return (st->passes == 2);
+}
+
 // State is unchanged at the end (but it can change during execution)
-bool go_move_legal(state* st, move* mv_ptr) {
+bool go_is_move_legal(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	dot* board = st->board;
 	color friendly = st->nextPlayer;
@@ -897,7 +772,30 @@ bool go_move_legal(state* st, move* mv_ptr) {
 		return true;
 }
 
-play_result go_move_play(state* st, move* mv_ptr) {
+// Param move_list must be move[COUNT+1]
+// Returns number of legally playable moves
+int go_get_legal_moves(state* st, move* move_list) {
+	int num = 0;
+
+	if (go_is_game_over(st)) {
+		return 0;
+	}
+
+	move_list[num] = MOVE_PASS;
+	++num;
+
+	move mv;
+	for (int i = 0; i < COUNT; ++i) {
+		mv = i;
+		if (go_is_move_legal(st, &mv)) {
+			move_list[num] = mv;
+			++num;
+		}
+	}
+	return num;
+}
+
+play_result go_play_move(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	dot* board = st->board;
 	group_pool* pool = &(st->groups);
@@ -990,6 +888,119 @@ play_result go_move_play(state* st, move* mv_ptr) {
 	return SUCCESS;
 }
 
-bool go_is_game_over(state* st) {
-	return (st->passes == 2);
+// Plays a random move & stores it in mv
+play_result go_play_random_move(state* st, move* mv, move* move_list) {
+	move tmp;
+	int timeout = COUNT;	// Heuristics
+	int rand_searches = 0;
+
+	color me = st->nextPlayer;
+	color notme = (me == BLACK) ? WHITE : BLACK;
+	dot* board = st->board;
+
+	do {
+		tmp = RANDI(-1, COUNT);
+		rand_searches++;
+
+		if (tmp == MOVE_PASS && st->passes == 1) {
+			// Forbid deliberate losing by passing
+			float score[3];
+			state_score(st, score, false);
+			if (score[me] < score[notme]) {
+				continue;
+			}
+		} else if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
+			// Forbid filling in a same group's eye
+			int i = tmp / SIZE;
+			int j = tmp - i * SIZE;
+			if (fills_in_friendly_eye(board, me, i, j)) {
+				continue;
+			}
+		}
+
+		if (go_play_move(st, &tmp) == SUCCESS) {
+			*mv = tmp;
+			return SUCCESS;
+		}
+	} while (rand_searches < timeout);
+
+	// Few moves remaining; look for them
+	int move_count = go_get_legal_moves(st, move_list);
+	if (move_count > 1) {
+		while (1) {
+			tmp = move_list[RANDI(0, move_count)];
+			if (tmp == MOVE_PASS && st->passes == 1) {
+				// Forbid deliberate losing by passing
+				float score[3];
+				state_score(st, score, false);
+				if (score[me] > score[notme]) {
+					break;
+				}
+			} else if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
+				// Forbid filling in a same group's eye
+				int i = tmp / SIZE;
+				int j = tmp - i * SIZE;
+				if (!fills_in_friendly_eye(board, me, i, j)) {
+					break;
+				}
+			} else {
+				break;
+			}
+		}
+		return go_play_move(st, &tmp);
+	} else if (move_count == 1) {
+		return go_play_move(st, &move_list[0]);
+	}
+
+	return FAIL_OTHER;
 }
+
+void go_print_heatmap(state* st, move* moves, double* values, int num_moves) {
+	dot* board = st->board;
+
+	double valboard[COUNT];
+	for (int i = 0; i < COUNT; ++i) {
+		valboard[i] = NAN;
+	}
+	double valpass = 0;
+
+	double minval = INFINITY;
+	double maxval = -INFINITY;
+	for (int i = 0; i < num_moves; ++i) {
+		if (moves[i] == MOVE_PASS) {
+			valpass = values[i];
+			continue;
+		}
+
+		valboard[moves[i]] = values[i];
+		minval = fmin(minval, values[i]);
+		maxval = fmax(maxval, values[i]);
+	}
+
+	wprintf(L"Between %.1f%% and %.1f%% (50%% is %lc)\n", minval*100, maxval*100, heatmap_char((0.5 - minval) / (maxval - minval) ));
+
+	wprintf(L"   ");
+	for (int i = 0; i < SIZE; ++i) {
+		wprintf(L"%c ", index_char(i));
+	}
+	wprintf(L"\n   ");
+	for (int i = 0; i < SIZE; ++i) {
+		wprintf(L"  ");
+	}
+	wprintf(L"(-- %lc)", heatmap_char( (valpass - minval) / (maxval - minval)));
+	for (int i = 0; i < SIZE; ++i) {
+		wprintf(L"\n%c  ", index_char(i));
+		for (int j = 0; j < SIZE; ++j) {
+			if (!isnan(valboard[i*SIZE+j])) {
+				wprintf(L"%lc%c",
+					heatmap_char( (valboard[i*SIZE+j] - minval) / (maxval - minval)),
+					(BOARD(i, j).player == EMPTY) ? ' ' : '*');
+			} else {
+				wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
+			}
+		}
+	}
+
+	wprintf(L"\n\n");
+}
+

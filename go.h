@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#define SIZE 9
+#define SIZE 5
 #define COUNT (SIZE*SIZE)
 
 #define NGROUPS (COUNT-1)
@@ -70,19 +70,6 @@ wchar_t color_char(color);
 color color_opponent(color);
 
 
-state* state_create();
-
-void state_copy(state*, state*);
-
-void state_destroy(state*);
-
-void state_print(state*);
-
-void state_heatmap_print(state*, move*, double*, int);
-
-void state_score(state*, float score[3], bool);
-
-
 move* move_create();
 
 void move_destroy(move*);
@@ -94,14 +81,29 @@ void move_sprint(wchar_t str[3], move*);
 void move_print(move*);
 
 
-bool go_move_legal(state*, move*);
+state* state_create();
 
-int go_get_legal_plays(state*, move move_list[COUNT+1]);
+void state_copy(state*, state*);
 
-play_result go_move_play(state*, move*);
+void state_destroy(state*);
 
-play_result go_move_play_random(state*, move*, move*);
+void state_print(state*);
+
+void state_dump(state*);
+
+void state_score(state*, float score[3], bool);
+
 
 bool go_is_game_over(state*);
+
+bool go_is_move_legal(state*, move*);
+
+int go_get_legal_moves(state*, move move_list[COUNT+1]);
+
+play_result go_play_move(state*, move*);
+
+play_result go_play_random_move(state*, move*, move*);
+
+void go_print_heatmap(state*, move*, double*, int);
 
 #endif

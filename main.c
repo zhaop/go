@@ -8,7 +8,7 @@
 // Have bot play one move given current state
 play_result randy_play(state* st, move* mv) {
 	move move_list[COUNT+1];
-	return go_move_play_random(st, mv, move_list);
+	return go_play_random_move(st, mv, move_list);
 }
 
 /*
@@ -29,11 +29,11 @@ play that move
 */
 play_result karl_play(state* st, move* mv, int N) {
 	move legal_moves[COUNT+1];
-	int num_moves = go_get_legal_plays(st, legal_moves);
+	int num_moves = go_get_legal_moves(st, legal_moves);
 
 	if (num_moves == 1) {
 		*mv = legal_moves[0];
-		return go_move_play(st, mv);
+		return go_play_move(st, mv);
 	}
 
 	color me = st->nextPlayer;
@@ -57,13 +57,13 @@ play_result karl_play(state* st, move* mv, int N) {
 
 		int test_idx = RANDI(0, num_moves);
 		move test_mv = legal_moves[test_idx];
-		go_move_play(&test_st, &test_mv);
+		go_play_move(&test_st, &test_mv);
 
 		move test_mv2;
 		move test_move_list[COUNT+1];
 		int t = 1;
 		while (!go_is_game_over(&test_st)) {
-			go_move_play_random(&test_st, &test_mv2, test_move_list);
+			go_play_random_move(&test_st, &test_mv2, test_move_list);
 			++t;
 		}
 
@@ -97,14 +97,14 @@ play_result karl_play(state* st, move* mv, int N) {
 	}
 
 	wprintf(L"\n\nDecision heatmap\n");
-	state_heatmap_print(st, legal_moves, pwin, num_moves);
+	go_print_heatmap(st, legal_moves, pwin, num_moves);
 
 	wprintf(L"Going with ");
 	move_print(&best_pwin_move);
 	wprintf(L" at %.1f%%\n", best_pwin*100);
 
 	*mv = best_pwin_move;
-	return go_move_play(st, mv);
+	return go_play_move(st, mv);
 }
 
 int main(/*int argc, char* argv[]*/) {
@@ -149,12 +149,12 @@ int main(/*int argc, char* argv[]*/) {
 			}
 
 			t0 = timer_now();
-			is_legal = go_move_legal(st, mv);
+			is_legal = go_is_move_legal(st, mv);
 			dt = timer_now() - t0;
 			wprintf(L"Move is %s [%.3Lf us]\n", (is_legal ? "legal" : "illegal"), dt*1e6);
 
 			t0 = timer_now();
-			result = go_move_play(st, mv);
+			result = go_play_move(st, mv);
 			dt = timer_now() - t0;
 
 			if (result != SUCCESS) {
