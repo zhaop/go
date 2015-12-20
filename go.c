@@ -292,7 +292,7 @@ bool group_pool_return(group_pool* pool, group* item) {
 	return true;
 }
 
-void group_print(group* gp) {
+void group_dump(group* gp) {
 	dot* head = gp->head;
 
 	wchar_t str[3];
@@ -397,7 +397,7 @@ void state_heatmap_print(state* st, move* moves, double* values, int num_moves) 
 }
 
 // Debug info about groups & ko
-void state_print_debug(state* st) {
+void state_dump(state* st) {
 	dot* board = st->board;
 	if (st->possibleKo != NO_POSSIBLE_KO) {
 		wprintf(L"Possible ko if ");
@@ -412,7 +412,7 @@ void state_print_debug(state* st) {
 		dot* stone = &board[i];
 		group* gp = stone->group;
 		if ((gp != NULL) && gp->head == stone) {
-			group_print(gp);
+			group_dump(gp);
 		}
 	}
 	double dt = timer_now() - t0;
