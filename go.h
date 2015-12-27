@@ -17,7 +17,7 @@
 
 typedef enum { EMPTY, BLACK, WHITE, NEUTRAL } color;
 
-typedef enum { SUCCESS, FAIL_GAME_ENDED, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_KO, FAIL_SUICIDE, FAIL_OTHER } play_result;
+typedef enum { SUCCESS, FAIL_GAME_ENDED, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_KO, FAIL_SUICIDE, FAIL_OTHER } move_result;
 
 typedef int addr;
 
@@ -106,9 +106,9 @@ bool go_is_move_legal(state*, move*);
 
 int go_get_legal_moves(state*, move move_list[COUNT+1]);
 
-play_result go_play_move(state*, move*);
+move_result go_play_move(state*, move*);
 
-play_result go_play_random_move(state*, move*, move*);
+move_result go_play_random_move(state*, move*, move*);
 
 void go_play_out(state*, playout_result*);
 

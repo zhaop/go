@@ -795,7 +795,7 @@ int go_get_legal_moves(state* st, move* move_list) {
 	return num;
 }
 
-play_result go_play_move(state* st, move* mv_ptr) {
+move_result go_play_move(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	dot* board = st->board;
 	group_pool* pool = &(st->groups);
@@ -889,7 +889,7 @@ play_result go_play_move(state* st, move* mv_ptr) {
 }
 
 // Plays a random move & stores it in mv
-play_result go_play_random_move(state* st, move* mv, move* move_list) {
+move_result go_play_random_move(state* st, move* mv, move* move_list) {
 	move tmp;
 	int timeout = COUNT;	// Heuristics
 	int rand_searches = 0;

@@ -6,7 +6,7 @@
 #include "utils.h"
 
 // Have bot play one move given current state
-play_result randy_play(state* st, move* mv) {
+move_result randy_play(state* st, move* mv) {
 	move move_list[COUNT+1];
 	return go_play_random_move(st, mv, move_list);
 }
@@ -27,7 +27,7 @@ calculate probabilities of winning for each possible next move
 find move with highest probability
 play that move
 */
-play_result karl_play(state* st, move* mv, int N) {
+move_result karl_play(state* st, move* mv, int N) {
 	move legal_moves[COUNT+1];
 	int num_moves = go_get_legal_moves(st, legal_moves);
 
@@ -117,7 +117,7 @@ int main(/*int argc, char* argv[]*/) {
 
 	bool is_legal;
 	bool is_parse_valid;
-	play_result result;
+	move_result result;
 	long double t0;
 	long double dt;
 	long double t_think;
