@@ -975,6 +975,7 @@ void go_play_out(state* st, playout_result* result) {
 	return;
 }
 
+
 void go_print_heatmap(state* st, move* moves, double* values, int num_moves) {
 	dot* board = st->board;
 
@@ -1024,3 +1025,29 @@ void go_print_heatmap(state* st, move* moves, double* values, int num_moves) {
 	wprintf(L"\n\n");
 }
 
+void go_print_move_result(move_result result) {
+	switch (result) {
+		case SUCCESS:
+			wprintf(L"Success\n");
+			break;
+		case FAIL_GAME_ENDED:
+			wprintf(L"Game ended\n");
+			break;
+		case FAIL_BOUNDS:
+			wprintf(L"Out of bounds\n");
+			break;
+		case FAIL_OCCUPIED:
+			wprintf(L"Occupied\n");
+			break;
+		case FAIL_KO:
+			wprintf(L"Ko\n");
+			break;
+		case FAIL_SUICIDE:
+			wprintf(L"Suicide\n");
+			break;
+		case FAIL_OTHER:
+		default:
+			wprintf(L"Other\n");
+			break;
+	}
+}

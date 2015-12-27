@@ -112,6 +112,9 @@ move_result go_play_random_move(state*, move*, move*);
 
 void go_play_out(state*, playout_result*);
 
+
 void go_print_heatmap(state*, move*, double*, int);
+
+void go_print_move_result(move_result);
 
 #endif

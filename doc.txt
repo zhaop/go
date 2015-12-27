@@ -54,4 +54,6 @@ Sorting it out
 1	*go_play_move: check_possible_ko, (-change_neighbors_freedoms), remove_dead_neighbor_enemy, count_liberties, has_living_friendlies, has_dying_friendlies, create_lone_group, merge_with_every_friendly
 1	*go_play_random_move: *state_score, fills_in_friendly_eye, *go_play_move, *go_get_legal_moves
 0	*go_play_out: *go_is_game_over, *go_play_random_move, *state_score
+
 0	*go_print_heatmap: index_char, heatmap_char, dot_char
+0	*go_print_move_result: --
