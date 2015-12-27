@@ -1,0 +1,57 @@
+Sorting it out
+(Trying to go from low level of abstraction to high)
+
+3	*color_char: --
+0	*color_opponent: --
+
+3	index_char: --
+1	char_index: --
+1	is_star_point: --
+2	dot_char: is_star_point, *color_char
+1	heatmap_char: --
+
+0	*move_create: --
+0	*move_destroy: --
+0	*move_parse: char_index
+2	*move_sprint: index_char
+2	*move_print: *move_sprint
+
+2	-change_neighbors_freedoms: --
+1	-change_neighbors_freedoms_if_specific_color: --
+
+1	stone_init: --
+1	group_init: --
+2	group_list_remove: --
+2	group_list_insert: --
+1	group_pool_borrow: group_list_remove, group_list_insert
+2	group_pool_return: group_list_remove, group_list_insert
+1	group_dump: *move_sprint, *color_char, *move_print
+1	group_add_stone: --
+1	group_merge_and_destroy_smaller: group_pool_return
+2	group_kill_stones: (-change_neighbors_freedoms_if_specific_color)
+1	count_territory: --
+
+0	*state_create: --
+0	*state_copy: --
+0	*state_destroy: --
+0	*state_print: index_char, *color_char, dot_char, *state_score
+0	*state_dump: *move_print, group_dump
+3	*state_score: count_territory
+
+1	fills_in_friendly_eye: --
+2	check_possible_ko: --
+1	is_neighbor_enemy_dead: --
+1	remove_dead_neighbor_enemy: group_kill_stones, group_pool_return
+1	count_liberties: --
+2	has_living_friendlies: --
+1	has_dying_friendlies: --
+1	create_lone_group: group_pool_borrow, group_init
+1	merge_with_every_friendly: stone_init, group_add_stone, group_merge_and_destroy_smaller
+
+2	*go_is_game_over: --
+1	*go_is_move_legal: check_possible_ko, is_neighbor_enemy_dead, has_living_friendlies, (-change_neighbors_freedoms)
+1	*go_get_legal_moves: *go_is_game_over, *go_is_move_legal
+1	*go_play_move: check_possible_ko, (-change_neighbors_freedoms), remove_dead_neighbor_enemy, count_liberties, has_living_friendlies, has_dying_friendlies, create_lone_group, merge_with_every_friendly
+1	*go_play_random_move: *state_score, fills_in_friendly_eye, *go_play_move, *go_get_legal_moves
+0	*go_play_out: *go_is_game_over, *go_play_random_move, *state_score
+0	*go_print_heatmap: index_char, heatmap_char, dot_char
