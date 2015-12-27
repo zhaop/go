@@ -7,6 +7,7 @@
 #define COUNT (SIZE*SIZE)
 
 #define NGROUPS (COUNT-1)
+#define NMOVES (COUNT+1)
 
 #define KOMI (6.5)
 

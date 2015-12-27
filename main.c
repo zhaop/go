@@ -5,30 +5,54 @@
 #include "go.h"
 #include "utils.h"
 
+typedef struct {
+	const char* name;
+	move_result (*const play)(state*, move*, void*);
+	void* params;
+} player;
+
+// params is ignored for human play
+move_result human_play(state* st, move* mv, void* params) {
+	params = params;	// @gcc pls dont warn kthx
+	while (1) {
+		wprintf(L"Your move: %lc ", color_char(st->nextPlayer));
+		
+		char mv_in[2];	// TODO DANGER BUFFER OVURFLURW
+		scanf("%s", mv_in);
+
+		if (!move_parse(mv, mv_in)) {
+			wprintf(L"Invalid input\n");
+		} else if (!go_is_move_legal(st, mv)) {
+			wprintf(L"Move is illegal\n");
+		} else {
+			move_result result = go_play_move(st, mv);
+
+			if (result != SUCCESS) {
+				wprintf(L"Unsuccessful move: ");
+				go_print_move_result(result);
+			} else {
+				return result;
+			}
+		}
+	}
+}
+
 // Have bot play one move given current state
 move_result randy_play(state* st, move* mv) {
-	move move_list[COUNT+1];
+	move move_list[NMOVES];
 	return go_play_random_move(st, mv, move_list);
 }
 
-/*
-legal_moves = all possible moves
-repeat N times:
-	state2 = make a copy of current state
-	pick one random next move
-	play random moves until game over
-	if game over:
-		count score according to Chinese rules
-		if I win:
-			count as win
-		else:
-			count as lose
-calculate probabilities of winning for each possible next move
-find move with highest probability
-play that move
-*/
-move_result karl_play(state* st, move* mv, int N) {
-	move legal_moves[COUNT+1];
+typedef struct {
+	int N;
+} karl_params;
+
+move_result karl_play(state* st, move* mv, void* params) {
+	int N = ((karl_params*) params)->N;
+
+	state test_st;
+
+	move legal_moves[NMOVES];
 	int num_moves = go_get_legal_moves(st, legal_moves);
 
 	if (num_moves == 1) {
@@ -39,19 +63,17 @@ move_result karl_play(state* st, move* mv, int N) {
 	color me = st->nextPlayer;
 	color notme = (me == BLACK) ? WHITE : BLACK;
 
-	int win[COUNT];
-	int lose[COUNT];
-	int draw[COUNT];
-	double pwin[COUNT];
+	int win[NMOVES];
+	int lose[NMOVES];
+	double pwin[NMOVES];
 
 	int i;
 	for (i = 0; i < num_moves; ++i) {
-		win[i] = lose[i] = draw[i] = 0;
+		win[i] = lose[i] = 0;
 		pwin[i] = 0.0;
 	}
 
-	state test_st;
-
+	// Do playouts
 	for (int i = 0; i < N; ++i) {
 		state_copy(st, &test_st);
 
@@ -69,6 +91,7 @@ move_result karl_play(state* st, move* mv, int N) {
 		}
 	}
 
+	// Calculate chances
 	double best_pwin = 0;
 	move best_pwin_move;
 	for (i = 0; i < num_moves; ++i) {
@@ -79,17 +102,13 @@ move_result karl_play(state* st, move* mv, int N) {
 			pwin[i] = (double) win[i] / (win[i] + lose[i]);
 		}
 
-		// wprintf(L"Move ");
-		// move_print(&legal_moves[i]);
-		// wprintf(L": +%d, -%d => %.1f%%\n", win[i], lose[i], pwin[i]*100);
-
 		if (pwin[i] > best_pwin) {
 			best_pwin = pwin[i];
 			best_pwin_move = legal_moves[i];
 		};
 	}
 
-	wprintf(L"\n\nDecision heatmap\n");
+	wprintf(L"\nDecision heatmap\n");
 	go_print_heatmap(st, legal_moves, pwin, num_moves);
 
 	wprintf(L"Going with ");
@@ -100,111 +119,49 @@ move_result karl_play(state* st, move* mv, int N) {
 	return go_play_move(st, mv);
 }
 
-int main(/*int argc, char* argv[]*/) {
-
+int main() {
 	setlocale(LC_ALL, "");
 	seed_rand_once();
 
+	long double t0, dt;
+
 	state* st = state_create();
-	if (!st) return -1;
+	int t = 0;
 
-	move* mv = move_create();
-	if (!mv) return -1;
+	player human = {"You", &human_play, NULL};
 
-	char mv_in[2];
+	karl_params karlp = {80000};
+	player karl = {"Karl", &karl_play, &karlp};
 
-	color human_player = WHITE;
+	player* players[3];
+	players[BLACK] = &karl;
+	players[WHITE] = &human;
 
-	bool is_legal;
-	bool is_parse_valid;
-	move_result result;
-	long double t0;
-	long double dt;
-	long double t_think;
 	while (1) {
-		if (st->nextPlayer == human_player) {
-			state_print(st);
-			if (go_is_game_over(st)) {
-				break;
-			}
+		player* pl = players[st->nextPlayer];
+		wprintf(L"%lc %s now playing\n", color_char(st->nextPlayer), pl->name);
 
-			wprintf(L"Your move: %lc ", color_char(st->nextPlayer));
-
-			t0 = timer_now();
-			scanf("%s", mv_in);
-			is_parse_valid = move_parse(mv, mv_in);
-			dt = timer_now() - t0;
-			t_think = dt;
-
-			if (!is_parse_valid) {
-				wprintf(L"Invalid input\n");
-				continue;
-			}
-
-			t0 = timer_now();
-			is_legal = go_is_move_legal(st, mv);
-			dt = timer_now() - t0;
-			wprintf(L"Move is %s [%.3Lf us]\n", (is_legal ? "legal" : "illegal"), dt*1e6);
-
-			t0 = timer_now();
-			result = go_play_move(st, mv);
-			dt = timer_now() - t0;
-
-			if (result != SUCCESS) {
-				wprintf(L"Invalid move: ");
-				switch (result) {
-					case FAIL_GAME_ENDED:
-						wprintf(L"Game ended\n");
-						break;
-					case FAIL_BOUNDS:
-						wprintf(L"Out of bounds\n");
-						break;
-					case FAIL_OCCUPIED:
-						wprintf(L"Occupied\n");
-						break;
-					case FAIL_KO:
-						wprintf(L"Ko\n");
-						break;
-					case FAIL_SUICIDE:
-						wprintf(L"Suicide\n");
-						break;
-					case FAIL_OTHER:
-					default:
-						wprintf(L"Other\n");
-						break;
-				}
-				continue;
-			}
-
-			wprintf(L"%lc (You) played ", color_char((st->nextPlayer == BLACK) ? WHITE : BLACK));
-			move_print(mv);
-			wprintf(L" (%.2Lf s thinking, %.2Lf us playing)\n", t_think, dt*1e6);
-		} else {
-			state_print(st);
-			if (go_is_game_over(st)) {
-				break;
-			}
-
-			t0 = timer_now();
-			result = karl_play(st, mv, 200000);
-			dt = timer_now() - t0;
-
-			wprintf(L"Karl's move: %lc ", color_char(color_opponent(st->nextPlayer)));
-			move_print(mv);
-			wprintf(L"\n");
-
-			if (result != SUCCESS) {
-				wprintf(L"Karl has no more moves [%.2Lf us]\n", dt*1e6);
-				return 0;
-			}
-
-			wprintf(L"%lc (Karl) played ", color_char(color_opponent(st->nextPlayer)));
-			move_print(mv);
-			wprintf(L" [%.0Lf ms]\n", dt*1e3);
-
-			state_print(st);
-			return 42;
+		state_print(st);
+		if (go_is_game_over(st)) {
+			break;
 		}
+
+		t0 = timer_now();
+		move mv;
+		move_result result = pl->play(st, &mv, pl->params);
+		dt = timer_now() - t0;
+
+		if (result != SUCCESS) {
+			wprintf(L"%s has no more moves [%.2Lf us]\n", pl->name, dt*1e6);
+			return 0;
+		}
+
+		wprintf(L"%lc %s played ", color_char(color_opponent(st->nextPlayer)), pl->name);
+		move_print(&mv);
+		wprintf(L" [%.0Lf ms]\n", dt*1e3);
+
+		wprintf(L"\n");
+		++t;
 	}
 
 	float final_score[3];
