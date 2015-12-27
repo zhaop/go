@@ -955,6 +955,26 @@ play_result go_play_random_move(state* st, move* mv, move* move_list) {
 	return FAIL_OTHER;
 }
 
+// Modifies st; stores result
+// Assumes game isn't over
+void go_play_out(state* st, playout_result* result) {
+	move mv;
+	move mv_list[COUNT+1];
+	while (!go_is_game_over(st)) {
+		if (go_play_random_move(st, &mv, mv_list) != SUCCESS) {
+			fwprintf(stderr, L"E: go_play_out couldn't play any moves\n");
+			result->winner = EMPTY;
+			return;
+		}
+	}
+
+	float score[3] = {0.0, 0.0, 0.0};
+	state_score(st, score, false);
+
+	result->winner = (score[BLACK] > score[WHITE]) ? BLACK : WHITE;
+	return;
+}
+
 void go_print_heatmap(state* st, move* moves, double* values, int num_moves) {
 	dot* board = st->board;
 

@@ -64,6 +64,12 @@ typedef struct {
 
 typedef int move;
 
+typedef struct {
+	color winner;
+	// int t;
+	// float score[3];
+} playout_result;
+
 
 wchar_t color_char(color);
 
@@ -103,6 +109,8 @@ int go_get_legal_moves(state*, move move_list[COUNT+1]);
 play_result go_play_move(state*, move*);
 
 play_result go_play_random_move(state*, move*, move*);
+
+void go_play_out(state*, playout_result*);
 
 void go_print_heatmap(state*, move*, double*, int);
 

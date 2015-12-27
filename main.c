@@ -55,24 +55,17 @@ play_result karl_play(state* st, move* mv, int N) {
 	for (int i = 0; i < N; ++i) {
 		state_copy(st, &test_st);
 
-		int test_idx = RANDI(0, num_moves);
-		move test_mv = legal_moves[test_idx];
-		go_play_move(&test_st, &test_mv);
+		int starting_move_idx = RANDI(0, num_moves);
+		move starting_move = legal_moves[starting_move_idx];
+		go_play_move(&test_st, &starting_move);
 
-		move test_mv2;
-		move test_move_list[COUNT+1];
-		int t = 1;
-		while (!go_is_game_over(&test_st)) {
-			go_play_random_move(&test_st, &test_mv2, test_move_list);
-			++t;
-		}
+		playout_result result;
+		go_play_out(&test_st, &result);
 
-		float test_score[3] = {0.0, 0.0, 0.0};
-		state_score(&test_st, test_score, false);
-		if (test_score[me] > test_score[notme]) {
-			++win[test_idx];
-		} else {
-			++lose[test_idx];
+		if (result.winner == me) {
+			++win[starting_move_idx];
+		} else if (result.winner == notme) {
+			++lose[starting_move_idx];
 		}
 	}
 
