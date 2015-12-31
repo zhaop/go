@@ -13,18 +13,23 @@ int main() {
 	state* st = state_create();
 	int t = 0;
 
-	player human = {"You", &human_play, NULL};
+	player human = {"You", &human_play, NULL, NULL};
 
-	karl_params karlp = {80000};
-	player karl = {"Karl", &karl_play, &karlp};
+	// karl_params karlp = {80000};
+	// player karl = {"Karl", &karl_play, &karlp};
+
+	teresa_params teresap = {80000, 0.5, NULL, NULL};
+	player teresa = {"Teresa", &teresa_play, NULL, &teresap};
 
 	player* players[3];
-	players[BLACK] = &karl;
+	players[BLACK] = &teresa;
 	players[WHITE] = &human;
 
 	while (1) {
-		player* pl = players[st->nextPlayer];
-		wprintf(L"%lc %s now playing\n", color_char(st->nextPlayer), pl->name);
+		color pl_color = st->nextPlayer;
+		player* pl = players[pl_color];
+		player* opponent = players[color_opponent(pl_color)];
+		wprintf(L"%lc %s now playing\n", color_char(pl_color), pl->name);
 
 		state_print(st);
 		if (go_is_game_over(st)) {
@@ -33,7 +38,7 @@ int main() {
 
 		t0 = timer_now();
 		move mv;
-		move_result result = pl->play(st, &mv, pl->params);
+		move_result result = pl->play(pl, st, &mv);
 		dt = timer_now() - t0;
 
 		if (result != SUCCESS) {
@@ -41,9 +46,16 @@ int main() {
 			return 0;
 		}
 
-		wprintf(L"%lc %s played ", color_char(color_opponent(st->nextPlayer)), pl->name);
+		wprintf(L"%lc %s played ", color_char(pl_color), pl->name);
 		move_print(&mv);
 		wprintf(L" [%.0Lf ms]\n", dt*1e3);
+
+		if (opponent->observe) {
+			t0 = timer_now();
+			opponent->observe(opponent, st, pl_color, &mv);
+			dt = timer_now() - t0;
+			wprintf(L"Opponent observed the move [%.0Lf us]\n", dt);
+		}
 
 		wprintf(L"\n");
 		++t;

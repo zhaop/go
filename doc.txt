@@ -1,5 +1,98 @@
-Sorting it out
-(Trying to go from low level of abstraction to high)
+MCTS algorithm
+1. Create root node
+2. Set root as current
+3. If current has children:
+  a. Find best child according to selection algorithm
+  b. Set child as current
+  c. Go to 3
+4. If current is leaf (no children): 
+  a. If current is game over:
+    a. Go to 2 (?)
+  b. If current is not game over:
+    a. Find a random next move
+    b. Create a child node for this move
+    c. Make a playout from child node
+    d. Propagate results to each parent
+    e. Go to 2 (if not timeout)
+
+Selection algorithm:
+calculate k = C * sqrt(ln(current.visits))
+return child with max UCB = (child.wins/child.visits) + k * 1/sqrt(visits)
+
+Results propagation:
+do:
+  increment current.visits
+  if result was a win:
+    increment current.wins
+  current = current.parent
+while current is not root;
+
+teresa_node {
+	teresa_node* sibling;
+	teresa_node* parent;
+	teresa_node* child;
+	color pl;
+	move move;
+	int wins;
+	int visits;
+}
+
+TODO (Problems with Teresa's algorithm)
+ - Each player would try to maximize his own UCB score, not that of the player currently thinking.
+ - Handle game-overs correctly
+ - Need better debugging tools w/ more accurate & understandable info
+ - Currently tends to favor passing twice at some point (even though this theoretically results in a 100% loss) --> why?
+
+Pseudocode:
+C := params.C;
+root := params.root;
+while can still think:
+  current := root
+  state := clone(state0)
+
+  // Selection
+  while current has children:
+    k := C * sqrt(ln(current.visits))
+    for each child:
+      if child.visits == 0:
+        UCB := Infinity
+      else:
+        UCB := (child.wins/child.visits) + k * 1/sqrt(child.visits)
+    find child with highest UCB for that player (randomly if tied)
+
+    current := child with highest UCB
+    play_move(state, current.move)
+
+  if is_game_over(state):
+    destroy(state)
+    continue;
+
+  // Expansion
+  list := get_legal_moves(state);
+  for each move in list:
+    create child node {parent: current, move: move, wins: 0, visits: 0}
+
+  // Simulation
+  current := random child node;
+  play_move(state, current.move)
+  result = play_out(state)
+  
+  // Back-propagation
+  do:
+    ++current.visits
+    if result.win:
+      ++current.wins
+    current = current.parent
+  while current != root;
+  destroy(state);
+
+
+TODO
+Karl still fills in friendly eyes sometimes (real MCTS probably resolves this)
+
+
+
+Sorting out go.c (low level of abstraction to high)
 
 3	*color_char: --
 0	*color_opponent: --

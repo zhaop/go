@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <wchar.h>
 
@@ -5,8 +7,8 @@
 #include "utils.h"
 
 // params is ignored for human play
-move_result human_play(state* st, move* mv, void* params) {
-	params = params;	// @gcc pls dont warn kthx
+move_result human_play(player* self, state* st, move* mv) {
+	self = self;	// @gcc pls dont warn kthx
 	while (1) {
 		wprintf(L"Your move: %lc ", color_char(st->nextPlayer));
 		
@@ -31,14 +33,14 @@ move_result human_play(state* st, move* mv, void* params) {
 }
 
 // Have bot play one move given current state
-move_result randy_play(state* st, move* mv, void* params) {
-	params = params;
+move_result randy_play(player* self, state* st, move* mv) {
+	self = self;
 	move move_list[NMOVES];
 	return go_play_random_move(st, mv, move_list);
 }
 
-move_result karl_play(state* st, move* mv, void* params) {
-	int N = ((karl_params*) params)->N;
+move_result karl_play(player* self, state* st, move* mv) {
+	int N = ((karl_params*) self->params)->N;
 
 	state test_st;
 
@@ -107,4 +109,271 @@ move_result karl_play(state* st, move* mv, void* params) {
 
 	*mv = best_pwin_move;
 	return go_play_move(st, mv);
+}
+
+void teresa_node_init(teresa_node* nd) {
+	nd->parent = NULL;
+	nd->sibling = NULL;
+	nd->child = NULL;
+	nd->mv = MOVE_PASS;
+	nd->wins = 0;
+	nd->visits = 0;
+}
+
+teresa_node* teresa_node_create() {
+	void* mem = malloc(sizeof(teresa_node));
+	return (teresa_node*) mem;
+}
+
+void teresa_node_destroy(teresa_node* item) {
+	free((void*) item);
+}
+
+teresa_node* teresa_node_sibling(teresa_node* node, int idx) {
+	for (int i = 0; i < idx; ++i) {
+		node = node->sibling;
+		if (!node) {
+			return NULL;
+		}
+	}
+	return node;
+}
+
+static void teresa_init_params(void* params) {
+	teresa_pool* pool = ((teresa_params*) params)->pool;
+	if (!pool) {
+		pool = malloc(sizeof(teresa_pool));
+		((teresa_params*) params)->pool = pool;
+	}
+	teresa_node* root = ((teresa_params*) params)->root;
+	if (!root) {
+		root = teresa_node_create();
+		((teresa_params*) params)->root = root;
+
+		root->parent = NULL;
+		root->sibling = NULL;
+		root->child = NULL;
+		root->mv = MOVE_PASS;
+		root->wins = 0;
+		root->visits = 0;
+	}
+}
+
+// Pick a random item in arr that has given value
+int pick_value_f(float* arr, int n, float val, int occurrences) {
+	int j = RANDI(0, occurrences);
+	for (int i = 0; i < n; ++i) {
+		if (arr[i] == val && j-- == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+teresa_node* teresa_select_best_child(teresa_node* current, float C, bool friendly_turn) {
+	float k = (current->visits == 0) ? 1 : C * sqrt(log(current->visits));
+
+	float UCBs[NMOVES];
+
+	int i = 0;
+	float max_UCB = -INFINITY;
+	int nmax_UCB = 0;
+	teresa_node* selected_child = NULL;
+	teresa_node* child = current->child;
+	while (child) {
+		if (friendly_turn) {
+			UCBs[i] = (child->visits == 0) ? INFINITY : ((double)child->wins/child->visits) + k / sqrt(child->visits);
+		} else {
+			UCBs[i] = (child->visits == 0) ? INFINITY : 1 - ((double)child->wins/child->visits) + k / sqrt(child->visits);
+		}
+
+		// Count max values
+		if (UCBs[i] == max_UCB) {
+			++nmax_UCB;
+		} else if (UCBs[i] > max_UCB) {
+			max_UCB = UCBs[i];
+			nmax_UCB = 1;
+			selected_child = child;
+		}
+
+		++i;
+		child = child->sibling;
+	}
+
+	if (nmax_UCB == 1) {
+		return selected_child;
+	} else {
+		int idx_max = pick_value_f(UCBs, i, max_UCB, nmax_UCB);
+		assert(idx_max != -1);
+		return teresa_node_sibling(current->child, idx_max);
+	}
+}
+
+void teresa_print_heatmap(state* st, teresa_node* current, float C) {
+	double UCBs[NMOVES];
+	move mvs[NMOVES];
+
+	float k = (current->visits == 0) ? 1 : C * sqrt(log(current->visits));
+
+	int i = 0;
+	teresa_node* child = current->child;
+	while (child) {
+		UCBs[i] = (child->visits == 0) ? INFINITY : ((double)child->wins/child->visits) + k / sqrt(child->visits);
+		wprintf(L"%d\t%lf\n", i, UCBs[i]);
+		mvs[i] = child->mv;
+
+		++i;
+		child = child->sibling;
+	}
+
+	go_print_heatmap(st, mvs, UCBs, i);
+}
+
+void teresa_destroy_all_children_except_one(teresa_node* parent, teresa_node* keep) {
+	teresa_node* next = NULL;
+	teresa_node* current = parent->child;
+	do {
+		next = current->sibling;
+		if (current == keep) {
+			current->sibling = NULL;
+			current->parent = NULL;
+		} else {
+			teresa_node_destroy(current);
+		}
+		current = next;
+	} while (current);
+}
+
+#define PARAM_C 0.5
+
+void pshort(teresa_node* nd) {
+	wprintf(L"{");
+	
+	if (nd) {
+		move_print(&nd->mv);
+
+		float k = 1;
+		if (nd->parent && nd->parent->visits != 0) {
+			k = PARAM_C * sqrt(log(nd->parent->visits));
+		}
+		wprintf(L", %d/%d; %.3f, %.3f", nd->wins, nd->visits,
+			((double)nd->wins/nd->visits) + k / sqrt(nd->visits), 1 - ((double)nd->wins/nd->visits) + k / sqrt(nd->visits));
+	}
+	wprintf(L"}");
+
+	if (nd && nd->parent && nd == teresa_select_best_child(nd->parent, PARAM_C, true)) {
+		wprintf(L"*");
+	}
+	if (nd && nd->parent && nd == teresa_select_best_child(nd->parent, PARAM_C, false)) {
+		wprintf(L"^");
+	}
+}
+
+void p(teresa_node* nd) {
+	wprintf(L"teresa_node (%p) {\n", nd);
+	wprintf(L"  parent:\n    ");
+	pshort(nd->parent);
+	
+	wprintf(L"\n  self:\n    ");
+	pshort(nd);
+	
+	wprintf(L"\n  siblings:");
+	teresa_node* current = nd;
+	while (current->sibling) {
+		wprintf(L"\n    ");
+		pshort(current->sibling);
+		current = current->sibling;
+	}
+	
+	wprintf(L"\n  child:\n    ");
+	pshort(nd->child);
+
+	wprintf(L"\n}\n");
+}
+
+// params.N, params.C must be defined
+move_result teresa_play(player* self, state* st0, move* mv) {
+	teresa_init_params(self->params);
+	teresa_params* params = (teresa_params*) self->params;
+
+	int N = params->N;
+	float C = params->C;
+	// teresa_pool* pool = params->pool;
+	teresa_node* root = params->root;
+	
+	color me = st0->nextPlayer;
+	// color notme = (me == BLACK) ? WHITE : BLACK;
+
+	state st;
+	int t;
+	int gameover_count = 0;
+	for (t = 0; t < N; ++t) {
+		teresa_node* current = root;
+		state_copy(st0, &st);
+
+		// Recurse into tree (think of next moves from what you played before)
+		while (current->child) {
+			current = teresa_select_best_child(current, C, st.nextPlayer == me);
+			go_play_move(&st, &(current->mv));
+		}
+
+		if (go_is_game_over(&st)) {
+			++gameover_count;
+			--t;	// HACK HACK HACK HACK
+			continue;
+		}
+
+		// Expansion (find things you never thought of before)
+		move list[NMOVES];
+		int n = go_get_legal_moves(&st, list);
+		int r = RANDI(0, n);
+		teresa_node* child = NULL;
+		teresa_node* prev_child = NULL;
+		teresa_node* selected_child = NULL;
+		for (int i = 0; i < n; ++i) {
+			child = teresa_node_create();
+			assert(child);
+
+			if (prev_child) prev_child->sibling = child;
+			if (i == 0) current->child = child;
+			child->sibling = NULL;
+			child->parent = current;
+			child->child = NULL;
+			child->mv = list[i];
+			child->wins = 0;
+			child->visits = 0;
+
+			if (i == r) selected_child = child;
+			prev_child = child;
+		}
+
+		// Simulation (guessing what happens if you do certain things)
+		current = selected_child;
+		go_play_move(&st, &(current->mv));
+		playout_result result;
+		go_play_out(&st, &result);
+
+		// Back-propagation (remember what's learned)
+		do {
+			++current->visits;
+			if (result.winner == me) {
+				++current->wins;
+			}
+			current = current->parent;
+		} while (current != NULL);
+	}
+
+	// Select best move (done thinking through all courses of action)
+	teresa_node* best_node = teresa_select_best_child(root, C, true);
+	move best = best_node->mv;
+
+	wprintf(L"\nDecision heatmap\n");
+	teresa_print_heatmap(st0, root, C);
+
+	// Destroy now useless children (forget everything unrelated to selected best move)
+	teresa_destroy_all_children_except_one(root, best_node);
+	params->root = root = best_node;
+
+	*mv = best;
+	return go_play_move(st0, &best);
 }
