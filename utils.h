@@ -12,4 +12,6 @@ int randi(int, int);
 
 void seed_rand_once();
 
+int max(int, int);
+
 #endif

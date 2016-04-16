@@ -125,7 +125,22 @@ teresa_node* teresa_node_create() {
 	return (teresa_node*) mem;
 }
 
+// Destroys a node's siblings and children
+void teresa_node_destroy_recursive(teresa_node* item) {
+	if (item->child) {
+		teresa_node_destroy_recursive(item->child);
+	}
+	if (item->sibling) {
+		teresa_node_destroy_recursive(item->sibling);
+	}
+	free((void*) item);
+}
+
+// Destroy a node and its children
 void teresa_node_destroy(teresa_node* item) {
+	if (item->child) {
+		teresa_node_destroy_recursive(item->child);
+	}
 	free((void*) item);
 }
 
@@ -170,6 +185,7 @@ int pick_value_f(float* arr, int n, float val, int occurrences) {
 	return -1;
 }
 
+// Return child with highest UCB score
 teresa_node* teresa_select_best_child(teresa_node* current, float C, bool friendly_turn) {
 	float k = (current->visits == 0) ? 1 : C * sqrt(log(current->visits));
 
@@ -204,6 +220,41 @@ teresa_node* teresa_select_best_child(teresa_node* current, float C, bool friend
 		return selected_child;
 	} else {
 		int idx_max = pick_value_f(UCBs, i, max_UCB, nmax_UCB);
+		assert(idx_max != -1);
+		return teresa_node_sibling(current->child, idx_max);
+	}
+}
+
+// Return child with highest win probability
+teresa_node* teresa_select_likeliest_child(teresa_node* current) {
+	float probs[NMOVES];
+
+	int i = 0;
+	float max_prob = -INFINITY;
+	int nmax_prob = 0;
+	teresa_node* selected_child = NULL;
+	teresa_node* child = current->child;
+	while (child) {
+		float prob = (float)child->wins/child->visits;
+		probs[i] = prob;
+
+		// Count max values
+		if (prob == max_prob) {
+			++nmax_prob;
+		} else if (prob > max_prob) {
+			max_prob = prob;
+			nmax_prob = 1;
+			selected_child = child;
+		}
+
+		++i;
+		child = child->sibling;
+	}
+
+	if (nmax_prob == 1) {
+		return selected_child;
+	} else {
+		int idx_max = pick_value_f(probs, i, max_prob, nmax_prob);
 		assert(idx_max != -1);
 		return teresa_node_sibling(current->child, idx_max);
 	}
@@ -302,7 +353,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	teresa_node* root = params->root;
 	
 	color me = st0->nextPlayer;
-	// color notme = (me == BLACK) ? WHITE : BLACK;
+	color notme = (me == BLACK) ? WHITE : BLACK;
 
 	state st;
 	int t;
@@ -319,18 +370,32 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 
 		if (go_is_game_over(&st)) {
 			++gameover_count;
-			--t;	// HACK HACK HACK HACK
+			// --t;	// HACK HACK HACK HACK
+			// Also, is this preventing the loop from terminating? Consider case where tree only has losing moves
+
+			// Propagate result up the tree (also HACK HACK HACK HACK)
+			float score[3] = {0.0, 0.0, 0.0};
+			state_score(&st, score, false);
+			do {
+				++current->visits;
+				if (score[me] > score[notme]) {
+					++current->wins;
+				}
+				current = current->parent;
+			} while (current != NULL);
+
 			continue;
 		}
 
 		// Expansion (find things you never thought of before)
 		move list[NMOVES];
-		int n = go_get_legal_moves(&st, list);
+		int n = go_get_reasonable_moves(&st, list);
 		int r = RANDI(0, n);
 		teresa_node* child = NULL;
 		teresa_node* prev_child = NULL;
 		teresa_node* selected_child = NULL;
 		for (int i = 0; i < n; ++i) {
+
 			child = teresa_node_create();
 			assert(child);
 
@@ -364,7 +429,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	}
 
 	// Select best move (done thinking through all courses of action)
-	teresa_node* best_node = teresa_select_best_child(root, C, true);
+	teresa_node* best_node = teresa_select_best_child(root, PARAM_C, true);
 	move best = best_node->mv;
 
 	wprintf(L"\nDecision heatmap\n");
@@ -376,4 +441,69 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 
 	*mv = best;
 	return go_play_move(st0, &best);
+}
+
+void teresa_reset_all_trace_of_move(teresa_node* node, move* mv) {
+	teresa_node* child = node->child;
+	teresa_node* prev = NULL;
+	teresa_node* next = NULL;
+	// Once mv found, reset whole branch
+	while (child) {
+		if (child->mv == *mv) {
+			next = child->sibling;
+			child->wins = 0;
+			child->visits = 0;
+			if (child->child) {
+				teresa_destroy_all_children_except_one(child, NULL);
+			}
+			break;
+		}
+		prev = child;
+		child = child->sibling;
+	}
+
+	// Repair rest of tree after mass destruction
+	if (next) {
+		if (!prev) {
+			node->child = next;
+		} else {
+			prev->sibling = next;
+		}
+	}
+
+	// Recurse on each child
+	child = node->child;
+	while (child) {
+		teresa_reset_all_trace_of_move(child, mv);
+		child = child->sibling;
+	}
+}
+
+void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) {
+	teresa_params* params = self->params;
+	teresa_node* root = params->root;
+	if (!root) return;
+
+	// Look for node with opponent_mv
+	teresa_node* child = root->child;
+	teresa_node* found = NULL;
+	while (child) {
+		if (child->mv == *opponent_mv) {
+			found = child;
+		}
+		child = child->sibling;
+	}
+
+	if (found) {
+		teresa_destroy_all_children_except_one(root, child);
+		params->root = root = child;
+	} else {
+		wprintf(L"Error: Teresa could not observe opponent move ");
+		move_print(opponent_mv);
+		wprintf(L"\n");
+	}
+
+	// Go through each child; once move opponent_mv found, delete the whole branch; then recurse on each child
+	// Look at all children of node; find move opponent_mv, and delete the whole branch; then going through each child, repeat
+	// teresa_reset_all_trace_of_move(root, opponent_mv);
 }

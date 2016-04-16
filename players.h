@@ -50,5 +50,6 @@ typedef struct {
 } teresa_params;
 
 move_result teresa_play(player*, state*, move*);
+void teresa_observe(player*, state*, color, move*);
 
 #endif

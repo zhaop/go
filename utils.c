@@ -26,3 +26,7 @@ void seed_rand_once() {
 	// srand(time(NULL));
 	srand(42);
 }
+
+int max(int a, int b) {
+	return (a > b) ? a : b;
+}

@@ -772,6 +772,32 @@ bool go_is_move_legal(state* st, move* mv_ptr) {
 		return true;
 }
 
+bool go_is_move_reasonable(state* st, move* mv_ptr) {
+	move mv = *mv_ptr;
+	if (!go_is_move_legal(st, mv_ptr)) {
+		return false;
+	}
+
+	color me = st->nextPlayer;
+	color notme = color_opponent(me);
+	
+	if (mv == MOVE_PASS) {
+		float score[3];
+		state_score(st, score, false);
+		if (score[me] < score[notme]) {
+			return false;
+		}
+	} else {
+		int mv_i = mv / SIZE;
+		int mv_j = mv % SIZE;
+		if (fills_in_friendly_eye(st->board, me, mv_i, mv_j)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 // Param move_list must be move[COUNT+1]
 // Returns number of legally playable moves
 int go_get_legal_moves(state* st, move* move_list) {
@@ -792,6 +818,38 @@ int go_get_legal_moves(state* st, move* move_list) {
 			++num;
 		}
 	}
+	return num;
+}
+
+// Like go_get_legal_moves, but without losing passes or 
+int go_get_reasonable_moves(state* st, move* move_list) {
+	int num = 0;
+	move mv = MOVE_PASS;
+
+	if (go_is_game_over(st)) {
+		return 0;
+	}
+
+	// Allow only non-losing passes
+	if (go_is_move_reasonable(st, &mv)) {
+		move_list[num] = mv;
+		++num;
+	}
+
+	for (int i = 0; i < COUNT; ++i) {
+		mv = i;
+		if (go_is_move_reasonable(st, &mv)) {
+			move_list[num] = mv;
+			++num;
+		}
+	}
+
+	// Or allow pass when nowhere to play
+	if (!num) {
+		move_list[num] = MOVE_PASS;
+		++num;
+	}
+
 	return num;
 }
 

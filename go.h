@@ -101,11 +101,15 @@ void state_dump(state*);
 void state_score(state*, float score[3], bool);
 
 
+bool fills_in_friendly_eye(dot*, color, int, int);
+
 bool go_is_game_over(state*);
 
 bool go_is_move_legal(state*, move*);
 
-int go_get_legal_moves(state*, move move_list[COUNT+1]);
+int go_get_legal_moves(state*, move move_list[NMOVES]);
+
+int go_get_reasonable_moves(state*, move move_list[NMOVES]);
 
 move_result go_play_move(state*, move*);
 
