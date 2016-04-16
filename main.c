@@ -21,8 +21,12 @@ int main() {
 	teresa_params teresap = {80000, 0.5, NULL, NULL};
 	player teresa = {"Teresa", &teresa_play, &teresa_observe, &teresap};
 
+	teresa_node** r = &(teresap.root);
+
 	teresa_params teresa2p = {80000, 0.5, NULL, NULL};
 	player teresa2 = {"Teresa 2", &teresa_play, &teresa_observe, &teresa2p};
+
+	teresa_node** r2 = &(teresa2p.root);
 
 	player* players[3];
 	players[BLACK] = &teresa;

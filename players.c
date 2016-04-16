@@ -342,6 +342,75 @@ void p(teresa_node* nd) {
 	wprintf(L"\n}\n");
 }
 
+void graph_node(FILE* f, teresa_node* node) {
+	fprintf(f, "\tn%p [label=\"%d; %.1f\"];\n", node, node->visits, (float)100*node->wins/node->visits);
+}
+
+void graph_relation(FILE* f, teresa_node* child) {
+	wchar_t mv_str[3];
+	move_sprint(mv_str, &(child->mv));
+	fprintf(f, "\tn%p -> n%p [label=\"%ls\"];\n", child->parent, child, mv_str);
+}
+
+int int_desc_cmp(const void* a, const void* b) {
+	return *((int*)b) - *((int*)a);
+}
+
+void graph_children(FILE* f, teresa_node* node, int depth, int cutoff) {
+	if (!node) return;
+	
+	--depth;
+	if (depth < 0) return;
+
+	teresa_node* child;
+
+	// Find highest visits first
+	int node_visits[NMOVES];
+	int i = 0;
+	child = node->child;
+	while (child) {
+		node_visits[i] = child->visits;
+		++i;
+		child = child->sibling;
+	}
+	qsort(node_visits, NMOVES, sizeof(int), int_desc_cmp);
+	int thresh = max(node_visits[cutoff-1], 40);
+	
+	// Print selected nodes
+	child = node->child;
+	while (child) {
+		if (child->visits >= thresh) {
+			graph_node(f, child);
+			graph_relation(f, child);
+			graph_children(f, child, depth, cutoff);
+		}
+		child = child->sibling;
+	}
+}
+
+void g(teresa_node* root, int depth, int thresh) {
+
+	if (!root) {
+		wprintf(L"root is NULL\n");
+		return;
+	}
+
+	const char fmode = 'w';
+	
+	FILE* f = fopen("graph.gv", &fmode);
+	fprintf(f, "digraph teresaTree {\n");
+		fprintf(f, "\tlayout=twopi;\n");
+		fprintf(f, "\tranksep=4;\n");
+		graph_node(f, root);
+		graph_children(f, root, depth, thresh);
+	fprintf(f, "}");
+	
+	fclose(f);
+}
+/*
+p g(root, 1, 20)
+*/
+
 // params.N, params.C must be defined
 move_result teresa_play(player* self, state* st0, move* mv) {
 	teresa_init_params(self->params);
