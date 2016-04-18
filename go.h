@@ -13,6 +13,7 @@
 
 #define NO_POSSIBLE_KO -1
 #define MOVE_PASS -1
+#define MOVE_RESIGN -2
 
 #define ADDR_NULL -1
 
@@ -99,6 +100,8 @@ void state_print(state*);
 void state_dump(state*);
 
 void state_score(state*, float score[3], bool);
+
+color state_winner(state*);
 
 
 bool fills_in_friendly_eye(dot*, color, int, int);

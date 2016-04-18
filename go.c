@@ -108,6 +108,9 @@ bool move_parse(move* mv, char str[2]) {
 	if (str[0] == '-' && str[1] == '-') {
 		*mv = MOVE_PASS;
 		return true;
+	} else if (str[0] == ':' && str[1] == '(') {
+		*mv = MOVE_RESIGN;
+		return true;
 	}
 
 	int i = char_index(str[0]);
@@ -124,6 +127,9 @@ bool move_parse(move* mv, char str[2]) {
 void move_sprint(wchar_t str[3], move* mv) {
 	if (*mv == MOVE_PASS) {
 		swprintf(str, 3, L"--");
+		return;
+	} else if (*mv == MOVE_RESIGN) {
+		swprintf(str, 3, L":(");
 		return;
 	}
 
@@ -480,6 +486,8 @@ void state_print(state* st) {
 		wprintf(L" (%lc passed)", color_char(enemy));
 	} else if (st->passes == 2) {
 		wprintf(L" (game ended)");
+	} else if (st->passes >= 3) {
+		wprintf(L" (game ended: %lc resigned)", color_char(enemy));
 	}
 	for (int i = 0; i < SIZE; ++i) {
 		wprintf(L"\n%c  ", index_char(i));
@@ -542,6 +550,18 @@ void state_score(state* st, float* score, bool chinese_rules) {
 				++score[BOARD(i, j).player];
 			}
 		}
+	}
+}
+
+color state_winner(state* st) {
+	if (!go_is_game_over(st)) {
+		return EMPTY;
+	} else if (st->passes == 2) {
+		float score[3];
+		state_score(st, score, false);
+		return (score[BLACK] > score[WHITE]) ? BLACK : WHITE;
+	} else if (st->passes == 3) {
+		return st->nextPlayer;
 	}
 }
 
@@ -687,7 +707,7 @@ static inline void merge_with_every_friendly(dot* board, group_pool* pool, color
 
 
 bool go_is_game_over(state* st) {
-	return (st->passes == 2);
+	return (st->passes >= 2);
 }
 
 // State is unchanged at the end (but it can change during execution)
@@ -697,11 +717,11 @@ bool go_is_move_legal(state* st, move* mv_ptr) {
 	color friendly = st->nextPlayer;
 	color enemy = (friendly == BLACK) ? WHITE : BLACK;
 
-	if (st->passes >= 2) {
+	if (go_is_game_over(st)) {
 		return false;
 	}
 
-	if (mv == MOVE_PASS) {
+	if (mv == MOVE_PASS || mv == MOVE_RESIGN) {
 		return true;
 	}
 
@@ -772,7 +792,7 @@ bool go_is_move_legal(state* st, move* mv_ptr) {
 		return true;
 }
 
-// Never pass to lose unless no other choice, never fill in own eyes
+// Never resign, never pass while losing, never fill in own eyes
 bool go_is_move_reasonable(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	if (!go_is_move_legal(st, mv_ptr)) {
@@ -782,7 +802,9 @@ bool go_is_move_reasonable(state* st, move* mv_ptr) {
 	color me = st->nextPlayer;
 	color notme = color_opponent(me);
 	
-	if (mv == MOVE_PASS) {
+	if (mv == MOVE_RESIGN) {
+		return false;
+	} else if (mv == MOVE_PASS) {
 		float score[3];
 		state_score(st, score, false);
 		if (score[me] < score[notme]) {
@@ -808,8 +830,8 @@ int go_get_legal_moves(state* st, move* move_list) {
 		return 0;
 	}
 
-	move_list[num] = MOVE_PASS;
-	++num;
+	move_list[num++] = MOVE_RESIGN;
+	move_list[num++] = MOVE_PASS;
 
 	move mv;
 	for (int i = 0; i < COUNT; ++i) {
@@ -822,7 +844,7 @@ int go_get_legal_moves(state* st, move* move_list) {
 	return num;
 }
 
-// Like go_get_legal_moves, but without losing passes or 
+// Like go_get_legal_moves, but without resignations, eye-filling or losing passes (unless no move possible)
 int go_get_reasonable_moves(state* st, move* move_list) {
 	int num = 0;
 	move mv = MOVE_PASS;
@@ -861,8 +883,14 @@ move_result go_play_move(state* st, move* mv_ptr) {
 	color friendly = st->nextPlayer;
 	color enemy = (friendly == BLACK) ? WHITE : BLACK;
 
-	if (st->passes == 2) {
+	if (st->passes >= 2) {
 		return FAIL_GAME_ENDED;
+	}
+
+	if (mv == MOVE_RESIGN) {
+		st->nextPlayer = enemy;
+		st->passes = 3;
+		return SUCCESS;
 	}
 
 	if (mv == MOVE_PASS) {
@@ -947,7 +975,8 @@ move_result go_play_move(state* st, move* mv_ptr) {
 	return SUCCESS;
 }
 
-// Plays a random move & stores it in mv
+// Plays a "random" move & stores it in mv
+// TODO Since this never resigns, passes to lose, or fills own eyes, use is_move_reasonable instead?
 move_result go_play_random_move(state* st, move* mv, move* move_list) {
 	move tmp;
 	int timeout = COUNT;	// Heuristics
@@ -958,7 +987,7 @@ move_result go_play_random_move(state* st, move* mv, move* move_list) {
 	dot* board = st->board;
 
 	do {
-		tmp = RANDI(-1, COUNT);
+		tmp = RANDI(-1, COUNT);	// Random never resigns (mv = -2)
 		rand_searches++;
 
 		if (tmp == MOVE_PASS && st->passes == 1) {

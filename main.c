@@ -33,15 +33,17 @@ int main() {
 	players[WHITE] = &human;
 
 	while (1) {
+		if (go_is_game_over(st)) {
+			state_print(st);
+			break;
+		}
+
 		color pl_color = st->nextPlayer;
 		player* pl = players[pl_color];
 		player* opponent = players[color_opponent(pl_color)];
-		wprintf(L"%lc %s now playing\n", color_char(pl_color), pl->name);
 
+		wprintf(L"%lc %s now playing\n", color_char(pl_color), pl->name);
 		state_print(st);
-		if (go_is_game_over(st)) {
-			break;
-		}
 
 		t0 = timer_now();
 		move mv;
@@ -71,11 +73,15 @@ int main() {
 		if (*r2) g2(*r2, "graph4.json", 8, 8);
 	}
 
-	float final_score[3];
-	state_score(st, final_score, false);
-	color winner = (final_score[BLACK] > final_score[WHITE]) ? BLACK : WHITE;
-	color loser = (winner == BLACK) ? WHITE : BLACK;
-	wprintf(L"Game over: %lc wins by %.1f points.\n", color_char(winner), final_score[winner] - final_score[loser]);
+	color winner = state_winner(st);
+	color loser = color_opponent(winner);
+	if (st->passes == 2) {
+		float final_score[3];
+		state_score(st, final_score, false);
+		wprintf(L"Game over: %lc wins by %.1f points.\n", color_char(winner), final_score[winner] - final_score[loser]);
+	} else if (st->passes == 3) {
+		wprintf(L"Game over: %lc wins by resignation\n", color_char(winner));
+	}
 
 	return 0;
 }
