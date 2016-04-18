@@ -119,6 +119,21 @@ static inline void teresa_node_init(teresa_node* nd) {
 	nd->mv = MOVE_PASS;
 	nd->wins = 0;
 	nd->visits = 0;
+	nd->pwin = NAN;
+	nd->sqlg_visits = NAN;
+	nd->rsqrt_visits = NAN;
+}
+
+static inline double node_pwin(teresa_node* nd) {
+	return isnan(nd->pwin) ? (nd->pwin = (double)nd->wins/nd->visits) : nd->pwin;
+}
+
+static inline double node_sqlg_visits(teresa_node* nd) {
+	return isnan(nd->sqlg_visits) ? (nd->sqlg_visits = sqrt(log((double)nd->visits))) : nd->sqlg_visits;
+}
+
+static inline double node_rsqrt_visits(teresa_node* nd) {
+	return isnan(nd->rsqrt_visits) ? (nd->rsqrt_visits = 1 / sqrt((double)nd->visits)) : nd->rsqrt_visits;
 }
 
 teresa_node* teresa_node_create() {
@@ -182,7 +197,7 @@ int pick_value_f(float* arr, int n, float val, int occurrences) {
 
 // Return child with highest UCB score
 teresa_node* teresa_select_best_child(teresa_node* current, float C, bool friendly_turn) {
-	float k = (current->visits == 0) ? 1 : C * sqrt(log(current->visits));
+	float k = (current->visits == 0) ? 1.0 : C * node_sqlg_visits(current);
 
 	float UCBs[NMOVES];
 
@@ -192,10 +207,14 @@ teresa_node* teresa_select_best_child(teresa_node* current, float C, bool friend
 	teresa_node* selected_child = NULL;
 	teresa_node* child = current->child;
 	while (child) {
-		if (friendly_turn) {
-			UCBs[i] = (child->visits == 0) ? INFINITY : ((double)child->wins/child->visits) + k / sqrt(child->visits);
+		if (child->visits) {
+			if (friendly_turn) {
+				UCBs[i] = node_pwin(child) + k * node_rsqrt_visits(child);
+			} else {
+				UCBs[i] = 1 - node_pwin(child) + k * node_rsqrt_visits(child);
+			}
 		} else {
-			UCBs[i] = (child->visits == 0) ? INFINITY : 1 - ((double)child->wins/child->visits) + k / sqrt(child->visits);
+			UCBs[i] = INFINITY;
 		}
 
 		// Count max values
@@ -294,12 +313,12 @@ void teresa_print_heatmap(state* st, teresa_node* current, float C) {
 	double UCBs[NMOVES];
 	move mvs[NMOVES];
 
-	float k = (current->visits == 0) ? 1 : C * sqrt(log(current->visits));
+	double k = (current->visits == 0) ? 1 : C * node_sqlg_visits(current);
 
 	int i = 0;
 	teresa_node* child = current->child;
 	while (child) {
-		UCBs[i] = (child->visits == 0) ? INFINITY : ((double)child->wins/child->visits) + k / sqrt(child->visits);
+		UCBs[i] = (child->visits == 0) ? INFINITY : node_pwin(child) + k * node_rsqrt_visits(child);
 		mvs[i] = child->mv;
 
 		++i;
@@ -334,7 +353,7 @@ void pshort(teresa_node* nd) {
 
 		float k = 1;
 		if (nd->parent && nd->parent->visits != 0) {
-			k = PARAM_C * sqrt(log(nd->parent->visits));
+			k = PARAM_C * node_sqlg_visits(nd->parent);
 		}
 		wprintf(L", %d/%d; %.3f, %.3f", nd->wins, nd->visits,
 			((double)nd->wins/nd->visits) + k / sqrt(nd->visits), 1 - ((double)nd->wins/nd->visits) + k / sqrt(nd->visits));
@@ -473,7 +492,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 		}
 
 		if (go_is_game_over(&st)) {
-			// Propagate result up the tree (also HACK HACK HACK HACK)
+			// Propagate result up the tree (also TODO HACK HACK HACK HACK)
 			float score[3] = {0.0, 0.0, 0.0};
 			state_score(&st, score, false);
 			do {
@@ -481,6 +500,10 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 				if (score[me] > score[notme]) {
 					++current->wins;
 				}
+				current->pwin = NAN;
+				current->sqlg_visits = NAN;
+				current->rsqrt_visits = NAN;
+
 				current = current->parent;
 			} while (current != NULL);
 
@@ -523,6 +546,10 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 			if (result.winner == me) {
 				++current->wins;
 			}
+			current->pwin = NAN;
+			current->sqlg_visits = NAN;
+			current->rsqrt_visits = NAN;
+
 			current = current->parent;
 		} while (current != NULL);
 	}

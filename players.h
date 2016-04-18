@@ -32,8 +32,11 @@ typedef struct teresa_node {
 	struct teresa_node* child;
 	color pl;
 	move mv;
-	int wins;
-	int visits;
+	int wins;		// BUG Must also set pwin NAN!
+	int visits;		// BUG Must also set pwin, sqlg_visits, rsqrt_visits NAN!
+	double pwin;
+	double sqlg_visits;	// BUG ONLY READ USING node_sqlg_visits(&node)
+	double rsqrt_visits;	// BUG ONLY READ USING node_rsqrt_visits(&node)
 } teresa_node;
 
 struct teresa_pool;
