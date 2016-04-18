@@ -9,10 +9,10 @@ CC      = gcc
 # Include directory
 INCLUDE = include
 
-# Compiler flags (-O3 to optimize, -g to debug, -pg to profile)
 CFLAGS  = -Wall -Wextra -I${INCLUDE} -g
+# Compiler flags (-O3 to optimize, -g to debug, -pg or -ftest-coverage -fprofile-arcs to profile)
 
-# Libraries (-O3 to optimize)
+# Libraries
 LIBS    = -lm -L/usr/lib
 
 # Source code to compile
@@ -27,7 +27,7 @@ TARGET  = go.x
 
 # Link objects into executable file
 $(TARGET): $(OFILES)
-	$(CC) $(OFILES) ${LIBS} -o $(TARGET)
+	$(CC) $(OFILES) $(CFLAGS) ${LIBS} -o $(TARGET)
 
 
 # Special targets:
