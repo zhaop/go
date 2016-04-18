@@ -468,7 +468,6 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	
 	state st;
 	int t;
-	int gameover_count = 0;
 	for (t = 0; t < N; ++t) {
 		teresa_node* current = root;
 		state_copy(st0, &st);
@@ -480,10 +479,6 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 		}
 
 		if (go_is_game_over(&st)) {
-			++gameover_count;
-			// --t;	// HACK HACK HACK HACK
-			// Also, is this preventing the loop from terminating? Consider case where tree only has losing moves
-
 			// Propagate result up the tree (also HACK HACK HACK HACK)
 			float score[3] = {0.0, 0.0, 0.0};
 			state_score(&st, score, false);
