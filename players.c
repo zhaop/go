@@ -548,13 +548,13 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 		g2(root, "graph3.json", 8, 8);
 	}
 
-	// Resign if under win threshold
-	// if ((float)best_node->wins / best_node->visits < TERESA_RESIGN_THRESHOLD) {
-	// 	teresa_node_destroy(root);
-	// 	params->root = NULL;
-	// 	*mv = MOVE_RESIGN;
-	// 	return go_play_move(st0, mv);
-	// }
+	// Resign if under win threshold :/
+	if ((float)best_node->wins / best_node->visits < TERESA_RESIGN_THRESHOLD) {
+		teresa_node_destroy(root);
+		params->root = NULL;
+		*mv = MOVE_RESIGN;
+		return go_play_move(st0, mv);
+	}
 
 	// Destroy now useless children (forget everything unrelated to selected best move)
 	teresa_destroy_all_children_except_one(root, best_node);
@@ -618,10 +618,19 @@ void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) 
 	if (found) {
 		teresa_destroy_all_children_except_one(root, found);
 		params->root = root = found;
+	} else if (*opponent_mv == MOVE_PASS) {
+		wprintf(L"I observed an unexpected pass, which confuses me\n");
+		teresa_node_destroy(root);
+		params->root = NULL;
+	} else if (*opponent_mv == MOVE_RESIGN) {
+		wprintf(L"I observed a resignation\n");
+		teresa_node_destroy(root);
+		params->root = NULL;
 	} else {
 		wprintf(L"Error: Teresa could not observe opponent move ");
 		move_print(opponent_mv);
 		wprintf(L"\n");
+		wprintf(L"This is not normal and must be an untreated edge case.\n");
 	}
 
 	// Go through each child; once move opponent_mv found, delete the whole branch; then recurse on each child

@@ -23,6 +23,7 @@ move_result karl_play(player*, state*, move*);
 
 
 #define N_TERESA_NODES 80000*COUNT
+#define TERESA_RESIGN_THRESHOLD 0.01
 
 struct teresa_node;
 typedef struct teresa_node {
