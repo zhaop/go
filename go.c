@@ -586,14 +586,14 @@ bool fills_in_friendly_eye(dot* board, color friendly, int i, int j) {
 	}
 
 	if (i <= SIZE-2) {
-		stone = &BOARD(i, j+1);
+		stone = &BOARD(i+1, j);
 		if (stone->player != friendly) return false;
 		if (!gp) gp = stone->group;
 		else if (stone->group != gp) return false;
 	}
 
 	if (j <= SIZE-2) {
-		stone = &BOARD(i+1, j);
+		stone = &BOARD(i, j+1);
 		if (stone->player != friendly) return false;
 		if (!gp) gp = stone->group;
 		else if (stone->group != gp) return false;
