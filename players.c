@@ -601,6 +601,9 @@ void teresa_reset_all_trace_of_move(teresa_node* node, move* mv) {
 }
 
 void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) {
+	st = st;	// @gcc pls dont warn kthx
+	opponent = opponent;
+
 	teresa_params* params = self->params;
 	teresa_node* root = params->root;
 	if (!root) return;

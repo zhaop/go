@@ -554,14 +554,14 @@ void state_score(state* st, float* score, bool chinese_rules) {
 }
 
 color state_winner(state* st) {
-	if (!go_is_game_over(st)) {
-		return EMPTY;
-	} else if (st->passes == 2) {
+	if (st->passes == 2) {
 		float score[3];
 		state_score(st, score, false);
 		return (score[BLACK] > score[WHITE]) ? BLACK : WHITE;
 	} else if (st->passes == 3) {
 		return st->nextPlayer;
+	} else {
+		return EMPTY;
 	}
 }
 
