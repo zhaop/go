@@ -27,7 +27,7 @@ wchar_t color_char(color player) {
 }
 
 color color_opponent(color player) {
-	return (player == BLACK) ? WHITE : BLACK;
+	return (player == BLACK) ? WHITE : (player == WHITE ? BLACK : NEUTRAL);
 }
 
 
@@ -772,6 +772,7 @@ bool go_is_move_legal(state* st, move* mv_ptr) {
 		return true;
 }
 
+// Never pass to lose unless no other choice, never fill in own eyes
 bool go_is_move_reasonable(state* st, move* mv_ptr) {
 	move mv = *mv_ptr;
 	if (!go_is_move_legal(st, mv_ptr)) {

@@ -168,6 +168,7 @@ static void teresa_init_params(void* params) {
 		root->parent = NULL;
 		root->sibling = NULL;
 		root->child = NULL;
+		root->pl = NEUTRAL;	// Should be overridden in teresa_play
 		root->mv = MOVE_PASS;
 		root->wins = 0;
 		root->visits = 0;
@@ -260,6 +261,41 @@ teresa_node* teresa_select_likeliest_child(teresa_node* current) {
 	}
 }
 
+// Return most visited child (the one we're most certain of?)
+teresa_node* teresa_select_most_visited_child(teresa_node* current) {
+	float visits[NMOVES];	// float because pick_value_f only takes floats (overkill?)
+
+	int i = 0;
+	float max_visits = 0;
+	int nmax = 0;
+	teresa_node* selected_child = NULL;
+	teresa_node* child = current->child;
+	while (child) {
+		float visit = (float) child->visits;
+		visits[i] = visit;
+
+		// Count max values
+		if (visit == max_visits) {
+			++nmax;
+		} else if (visit > max_visits) {
+			max_visits = visit;
+			nmax = 1;
+			selected_child = child;
+		}
+
+		++i;
+		child = child->sibling;
+	}
+
+	if (nmax == 1) {
+		return selected_child;
+	} else {
+		int idx_max = pick_value_f(visits, i, max_visits, nmax);
+		assert(idx_max != -1);
+		return teresa_node_sibling(current->child, idx_max);
+	}
+}
+
 void teresa_print_heatmap(state* st, teresa_node* current, float C) {
 	double UCBs[NMOVES];
 	move mvs[NMOVES];
@@ -270,7 +306,6 @@ void teresa_print_heatmap(state* st, teresa_node* current, float C) {
 	teresa_node* child = current->child;
 	while (child) {
 		UCBs[i] = (child->visits == 0) ? INFINITY : ((double)child->wins/child->visits) + k / sqrt(child->visits);
-		wprintf(L"%d\t%lf\n", i, UCBs[i]);
 		mvs[i] = child->mv;
 
 		++i;
@@ -342,77 +377,86 @@ void p(teresa_node* nd) {
 	wprintf(L"\n}\n");
 }
 
-void graph_node(FILE* f, teresa_node* node) {
-	fprintf(f, "\tn%p [label=\"%d; %.1f\"];\n", node, node->visits, (float)100*node->wins/node->visits);
-}
-
-void graph_relation(FILE* f, teresa_node* child) {
-	wchar_t mv_str[3];
-	move_sprint(mv_str, &(child->mv));
-	fprintf(f, "\tn%p -> n%p [label=\"%ls\"];\n", child->parent, child, mv_str);
-}
-
 int int_desc_cmp(const void* a, const void* b) {
 	return *((int*)b) - *((int*)a);
 }
 
-void graph_children(FILE* f, teresa_node* node, int depth, int cutoff) {
+void graph_tree(FILE* f, teresa_node* node, int depth, int cutoff) {
 	if (!node) return;
 	
-	--depth;
-	if (depth < 0) return;
+	wchar_t mv_str[3];
+	move_sprint(mv_str, &(node->mv));
 
-	teresa_node* child;
+	char color_c = (node->pl == BLACK) ? 'b' : (node->pl == WHITE ? 'w' : 'n');
 
-	// Find highest visits first
-	int node_visits[NMOVES];
-	int i = 0;
-	child = node->child;
-	while (child) {
-		node_visits[i] = child->visits;
-		++i;
-		child = child->sibling;
-	}
-	qsort(node_visits, NMOVES, sizeof(int), int_desc_cmp);
-	int thresh = max(node_visits[cutoff-1], 40);
-	
-	// Print selected nodes
-	child = node->child;
-	while (child) {
-		if (child->visits >= thresh) {
-			graph_node(f, child);
-			graph_relation(f, child);
-			graph_children(f, child, depth, cutoff);
+	fprintf(f, "{\"id\":\"%p\",\"player\":\"%c\",\"move\":\"%ls\",\"visits\":%d,\"wins\":%d", node, color_c, mv_str, node->visits, node->wins);
+
+	if (depth > 0 && node->child) {
+		--depth;
+		teresa_node* child;
+
+		// Find highest visits first
+		int node_visits[NMOVES];
+		int i = 0;
+		child = node->child;
+		while (child) {
+			node_visits[i] = child->visits;
+			++i;
+			child = child->sibling;
 		}
-		child = child->sibling;
+		qsort(node_visits, NMOVES, sizeof(int), int_desc_cmp);
+		int thresh = max(node_visits[cutoff-1], 40);
+		
+		if (i) {
+			child = node->child;
+			bool nothing_printed = true;
+			while (child) {
+				if (child->visits >= thresh) {
+					if (nothing_printed) {
+						fprintf(f, ",\"children\":[\n");
+						nothing_printed = false;
+					} else {
+						fprintf(f, ",\n");
+					}
+					graph_tree(f, child, depth, cutoff);
+				}
+				child = child->sibling;
+			}
+			if (!nothing_printed) {
+				fprintf(f, "]");
+			}
+		}
 	}
+
+	fprintf(f, "}");
 }
 
-void g(teresa_node* root, int depth, int thresh) {
+void g(teresa_node* root) {
+	g2(root, "graph1.json", 7, 7);
+}
+
+void g2(teresa_node* root, const char* path, int depth, int thresh) {
 
 	if (!root) {
 		wprintf(L"root is NULL\n");
 		return;
 	}
 
+	return;
+
 	const char fmode = 'w';
 	
-	FILE* f = fopen("graph.gv", &fmode);
-	fprintf(f, "digraph teresaTree {\n");
-		fprintf(f, "\tlayout=twopi;\n");
-		fprintf(f, "\tranksep=4;\n");
-		graph_node(f, root);
-		graph_children(f, root, depth, thresh);
-	fprintf(f, "}");
+	FILE* f = fopen(path, &fmode);
+	graph_tree(f, root, depth, thresh);
 	
 	fclose(f);
 }
-/*
-p g(root, 1, 20)
-*/
 
 // params.N, params.C must be defined
 move_result teresa_play(player* self, state* st0, move* mv) {
+	color me = st0->nextPlayer;
+	color notme = (me == BLACK) ? WHITE : BLACK;
+
 	teresa_init_params(self->params);
 	teresa_params* params = (teresa_params*) self->params;
 
@@ -420,10 +464,8 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	float C = params->C;
 	// teresa_pool* pool = params->pool;
 	teresa_node* root = params->root;
+	root->pl = notme;	// Root node is "what was just played", i.e. by opponent
 	
-	color me = st0->nextPlayer;
-	color notme = (me == BLACK) ? WHITE : BLACK;
-
 	state st;
 	int t;
 	int gameover_count = 0;
@@ -473,6 +515,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 			child->sibling = NULL;
 			child->parent = current;
 			child->child = NULL;
+			child->pl = color_opponent(current->pl);
 			child->mv = list[i];
 			child->wins = 0;
 			child->visits = 0;
@@ -497,12 +540,26 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 		} while (current != NULL);
 	}
 
-	// Select best move (done thinking through all courses of action)
-	teresa_node* best_node = teresa_select_best_child(root, PARAM_C, true);
+	// Select most visited move (done thinking through all courses of action)
+	teresa_node* best_node = teresa_select_most_visited_child(root);
 	move best = best_node->mv;
 
 	wprintf(L"\nDecision heatmap\n");
 	teresa_print_heatmap(st0, root, C);
+
+	if (me == BLACK) {
+		g2(root, "graph1.json", 8, 8);
+	} else {
+		g2(root, "graph3.json", 8, 8);
+	}
+
+	// Resign if under win threshold
+	// if ((float)best_node->wins / best_node->visits < TERESA_RESIGN_THRESHOLD) {
+	// 	teresa_node_destroy(root);
+	// 	params->root = NULL;
+	// 	*mv = MOVE_RESIGN;
+	// 	return go_play_move(st0, mv);
+	// }
 
 	// Destroy now useless children (forget everything unrelated to selected best move)
 	teresa_destroy_all_children_except_one(root, best_node);
@@ -564,8 +621,8 @@ void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) 
 	}
 
 	if (found) {
-		teresa_destroy_all_children_except_one(root, child);
-		params->root = root = child;
+		teresa_destroy_all_children_except_one(root, found);
+		params->root = root = found;
 	} else {
 		wprintf(L"Error: Teresa could not observe opponent move ");
 		move_print(opponent_mv);

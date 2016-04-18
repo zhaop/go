@@ -44,8 +44,8 @@ depend:
 	@echo "Done."
 
 clean:
-	@echo "Deleting object files and executables..."
-	@rm -f *.o *.x
+	@echo "Deleting graphs, object files and executables..."
+	@rm -f *.o *.x graph*.json
 	@echo "Done."
 
 #

@@ -52,4 +52,7 @@ typedef struct {
 move_result teresa_play(player*, state*, move*);
 void teresa_observe(player*, state*, color, move*);
 
+void g(teresa_node*);
+void g2(teresa_node*, const char*, int, int);
+
 #endif

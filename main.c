@@ -66,6 +66,9 @@ int main() {
 
 		wprintf(L"\n");
 		++t;
+
+		if (*r) g2(*r, "graph2.json", 8, 8);
+		if (*r2) g2(*r2, "graph4.json", 8, 8);
 	}
 
 	float final_score[3];
