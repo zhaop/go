@@ -108,7 +108,7 @@ bool move_parse(move* mv, char str[2]) {
 	if (str[0] == '-' && str[1] == '-') {
 		*mv = MOVE_PASS;
 		return true;
-	} else if (str[0] == ':' && str[1] == '(') {
+	} else if (str[0] == ':' && str[1] == '/') {
 		*mv = MOVE_RESIGN;
 		return true;
 	}
@@ -129,7 +129,7 @@ void move_sprint(wchar_t str[3], move* mv) {
 		swprintf(str, 3, L"--");
 		return;
 	} else if (*mv == MOVE_RESIGN) {
-		swprintf(str, 3, L":(");
+		swprintf(str, 3, L":/");
 		return;
 	}
 
