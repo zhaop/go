@@ -11,7 +11,7 @@ int main() {
 	long double t0, dt;
 
 	state* st = state_create();
-	int t = 0;
+	int t = 1;
 
 	player human = {"You", &human_play, NULL, NULL};
 
@@ -42,7 +42,7 @@ int main() {
 		player* pl = players[pl_color];
 		player* opponent = players[color_opponent(pl_color)];
 
-		wprintf(L"%lc %s now playing\n", color_char(pl_color), pl->name);
+		wprintf(L"%lc %d %s now playing\n", color_char(pl_color), t, pl->name);
 		state_print(st);
 
 		t0 = timer_now();
@@ -55,7 +55,7 @@ int main() {
 			return 0;
 		}
 
-		wprintf(L"%lc %s played ", color_char(pl_color), pl->name);
+		wprintf(L"%lc %d %s played ", color_char(pl_color), t, pl->name);
 		move_print(&mv);
 		wprintf(L" [%.0Lf ms]\n", dt*1e3);
 
