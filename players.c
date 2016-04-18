@@ -111,10 +111,11 @@ move_result karl_play(player* self, state* st, move* mv) {
 	return go_play_move(st, mv);
 }
 
-void teresa_node_init(teresa_node* nd) {
+static inline void teresa_node_init(teresa_node* nd) {
 	nd->parent = NULL;
 	nd->sibling = NULL;
 	nd->child = NULL;
+	nd->pl = NEUTRAL;
 	nd->mv = MOVE_PASS;
 	nd->wins = 0;
 	nd->visits = 0;
@@ -164,14 +165,7 @@ static void teresa_init_params(void* params) {
 	if (!root) {
 		root = teresa_node_create();
 		((teresa_params*) params)->root = root;
-
-		root->parent = NULL;
-		root->sibling = NULL;
-		root->child = NULL;
-		root->pl = NEUTRAL;	// Should be overridden in teresa_play
-		root->mv = MOVE_PASS;
-		root->wins = 0;
-		root->visits = 0;
+		teresa_node_init(root);
 	}
 }
 
@@ -505,15 +499,13 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 			child = teresa_node_create();
 			assert(child);
 
+			teresa_node_init(child);
+
 			if (prev_child) prev_child->sibling = child;
 			if (i == 0) current->child = child;
-			child->sibling = NULL;
 			child->parent = current;
-			child->child = NULL;
 			child->pl = color_opponent(current->pl);
 			child->mv = list[i];
-			child->wins = 0;
-			child->visits = 0;
 
 			if (i == r) selected_child = child;
 			prev_child = child;
