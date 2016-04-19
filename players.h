@@ -1,6 +1,7 @@
 #ifndef PLAYERS_H
 #define PLAYERS_H
 
+#include <stdint.h>
 #include "go.h"
 
 struct player;
@@ -22,21 +23,21 @@ typedef struct {
 move_result karl_play(player*, state*, move*);
 
 
-#define N_TERESA_NODES 80000*COUNT
+#define N_TERESA_NODES 80000*(COUNT*0)+1
 #define TERESA_RESIGN_THRESHOLD 0.01
 
 struct teresa_node;
 typedef struct teresa_node {
-	struct teresa_node* parent;
-	struct teresa_node* sibling;
-	struct teresa_node* child;
-	color pl;
-	move mv;
-	int wins;		// BUG Must also set pwin NAN!
-	int visits;		// BUG Must also set pwin, sqlg_visits, rsqrt_visits NAN!
-	double pwin;
-	double sqlg_visits;	// BUG ONLY READ USING node_sqlg_visits(&node)
-	double rsqrt_visits;	// BUG ONLY READ USING node_rsqrt_visits(&node)
+	struct teresa_node* parent;	// 8b
+	struct teresa_node* sibling;// 8b
+	struct teresa_node* child;	// 8b = 24
+	float pwin;					// 4b
+	float sqlg_visits;			// 4b	// BUG ONLY READ USING node_sqlg_visits(&node)
+	float rsqrt_visits;			// 4b	// BUG ONLY READ USING node_rsqrt_visits(&node)
+	uint16_t wins;				// 2b	// BUG Must also set pwin NAN!
+	uint16_t visits;			// 2b	// BUG Must also set pwin, sqlg_visits, rsqrt_visits NAN!
+	move mv;					// 2b
+	color pl;					// 1b
 } teresa_node;
 
 struct teresa_pool;

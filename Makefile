@@ -9,8 +9,8 @@ CC      = gcc
 # Include directory
 INCLUDE = include
 
-CFLAGS  = -Wall -Wextra -I${INCLUDE} -g
 # Compiler flags (-O3 to optimize, -g to debug, -pg or -ftest-coverage -fprofile-arcs to profile)
+CFLAGS  = -Wall -Wextra -I${INCLUDE} -pg -g -O2
 
 # Libraries
 LIBS    = -lm -L/usr/lib

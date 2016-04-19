@@ -6,6 +6,8 @@
 #include "players.h"
 #include "utils.h"
 
+static unsigned int teresa_node_count = 0;
+
 // params is ignored for human play
 move_result human_play(player* self, state* st, move* mv) {
 	self = self;	// @gcc pls dont warn kthx
@@ -124,20 +126,21 @@ static inline void teresa_node_init(teresa_node* nd) {
 	nd->rsqrt_visits = NAN;
 }
 
-static inline double node_pwin(teresa_node* nd) {
-	return isnan(nd->pwin) ? (nd->pwin = (double)nd->wins/nd->visits) : nd->pwin;
+static inline float node_pwin(teresa_node* nd) {
+	return isnan(nd->pwin) ? (nd->pwin = (float)nd->wins/nd->visits) : nd->pwin;
 }
 
-static inline double node_sqlg_visits(teresa_node* nd) {
-	return isnan(nd->sqlg_visits) ? (nd->sqlg_visits = sqrt(log((double)nd->visits))) : nd->sqlg_visits;
+static inline float node_sqlg_visits(teresa_node* nd) {
+	return isnan(nd->sqlg_visits) ? (nd->sqlg_visits = sqrt(log((float)nd->visits))) : nd->sqlg_visits;
 }
 
-static inline double node_rsqrt_visits(teresa_node* nd) {
-	return isnan(nd->rsqrt_visits) ? (nd->rsqrt_visits = 1 / sqrt((double)nd->visits)) : nd->rsqrt_visits;
+static inline float node_rsqrt_visits(teresa_node* nd) {
+	return isnan(nd->rsqrt_visits) ? (nd->rsqrt_visits = 1 / sqrt((float)nd->visits)) : nd->rsqrt_visits;
 }
 
 teresa_node* teresa_node_create() {
 	void* mem = malloc(sizeof(teresa_node));
+	++teresa_node_count;
 	return (teresa_node*) mem;
 }
 
@@ -150,6 +153,7 @@ void teresa_node_destroy_recursive(teresa_node* item) {
 		teresa_node_destroy_recursive(item->sibling);
 	}
 	free((void*) item);
+	--teresa_node_count;
 }
 
 // Destroy a node and its children
@@ -158,6 +162,7 @@ void teresa_node_destroy(teresa_node* item) {
 		teresa_node_destroy_recursive(item->child);
 	}
 	free((void*) item);
+	--teresa_node_count;
 }
 
 teresa_node* teresa_node_sibling(teresa_node* node, int idx) {
@@ -313,7 +318,7 @@ void teresa_print_heatmap(state* st, teresa_node* current, float C) {
 	double UCBs[NMOVES];
 	move mvs[NMOVES];
 
-	double k = (current->visits == 0) ? 1 : C * node_sqlg_visits(current);
+	float k = (current->visits == 0) ? 1 : C * node_sqlg_visits(current);
 
 	int i = 0;
 	teresa_node* child = current->child;

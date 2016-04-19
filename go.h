@@ -17,11 +17,15 @@
 
 #define ADDR_NULL -1
 
-typedef enum { EMPTY, BLACK, WHITE, NEUTRAL } color;
+typedef uint8_t color;
+#define EMPTY 0
+#define BLACK 1
+#define WHITE 2
+#define NEUTRAL 3
 
 typedef enum { SUCCESS, FAIL_GAME_ENDED, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_KO, FAIL_SUICIDE, FAIL_OTHER } move_result;
 
-typedef int addr;
+typedef int16_t addr;
 
 struct group;
 struct dot;
@@ -52,7 +56,7 @@ typedef struct dot {
 
 typedef struct {
 	color nextPlayer;
-	int possibleKo;		// Board index or NO_POSSIBLE_KO
+	addr possibleKo;		// Board index or NO_POSSIBLE_KO
 	int passes;		// Consecutive passes (when 2, game is over)
 	int prisoners[3];
 	struct dot board[COUNT];
@@ -64,7 +68,7 @@ typedef struct {
 	int area;
 } territory;
 
-typedef int move;
+typedef int16_t move;
 
 typedef struct {
 	color winner;
