@@ -909,18 +909,17 @@ move_result go_play_move(state* st, move* mv_ptr) {
 		++st->passes;
 		return SUCCESS;
 	}
-	st->passes = 0;
 
 	if (mv < 0 || mv >= COUNT) {
 		return FAIL_BOUNDS;
 	}
 
-	int i = mv / SIZE;
-	int j = mv - i * SIZE;
-
 	if (board[mv].player != EMPTY) {
 		return FAIL_OCCUPIED;
 	}
+
+	int i = mv / SIZE;
+	int j = mv - i * SIZE;
 
 	// Check for simple ko
 	if (st->possibleKo != NO_POSSIBLE_KO) {
@@ -980,6 +979,7 @@ move_result go_play_move(state* st, move* mv_ptr) {
 		merge_with_every_friendly(board, pool, friendly, i, j, liberties);
 	}
 
+	st->passes = 0;
 	st->prisoners[st->nextPlayer] += captured;
 	st->nextPlayer = enemy;
 
