@@ -1008,11 +1008,15 @@ move_result go_play_random_move(state* st, move* mv, move* move_list) {
 			if (score[me] < score[notme]) {
 				continue;
 			}
-		} else if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
-			// Forbid filling in a same group's eye
-			int i = tmp / SIZE;
-			int j = tmp - i * SIZE;
-			if (fills_in_friendly_eye(board, me, i, j)) {
+		} else if (tmp != MOVE_PASS) {
+			if (board[tmp].player == EMPTY) {
+				// Forbid filling in a same group's eye
+				int i = tmp / SIZE;
+				int j = tmp - i * SIZE;
+				if (fills_in_friendly_eye(board, me, i, j)) {
+					continue;
+				}
+			} else {
 				continue;
 			}
 		}
