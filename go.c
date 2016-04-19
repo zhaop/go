@@ -5,6 +5,7 @@
 #include <string.h>
 #include <wchar.h>
 #include "go.h"
+#include "rand.h"
 #include "utils.h"
 
 #define ALREADY_COUNTED(i, j) already_counted[(i)*SIZE+(j)]
@@ -14,6 +15,16 @@
 #define LEFT_OK  (j >= 1)
 #define RIGHT_OK (j <= SIZE-2)
 #define DOWN_OK  (i <= SIZE-2)
+
+
+INIT_MAKE_RANDI(42, 43);
+#if SIZE >= 12 && SIZE <= 22
+	MAKE_RANDI512(move_random, -1, COUNT);
+#elif SIZE >= 6 && SIZE <= 11
+	MAKE_RANDI128(move_random, -1, COUNT);
+#elif SIZE <= 5
+	MAKE_RANDI32(move_random, -1, COUNT);
+#endif
 
 
 wchar_t color_char(color player) {
@@ -987,7 +998,7 @@ move_result go_play_random_move(state* st, move* mv, move* move_list) {
 	dot* board = st->board;
 
 	do {
-		tmp = RANDI(-1, COUNT);	// Random never resigns (mv = -2)
+		tmp = move_random();	// Random never resigns (mv = -2)
 		rand_searches++;
 
 		if (tmp == MOVE_PASS && st->passes == 1) {

@@ -2,6 +2,7 @@
 #define GO_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define SIZE 5
 #define COUNT (SIZE*SIZE)

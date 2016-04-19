@@ -1,4 +1,3 @@
-# Yupeng ZHAO (MT-BA2)
 # Update CFILES & run make depend whenever files are added/removed
 # 
 # Greatly inspired by Prof Ronan Boulic from CS101@EPFL
