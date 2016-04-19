@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
 #include "utils.h"
@@ -29,4 +30,26 @@ void seed_rand_once() {
 
 int max(int a, int b) {
 	return (a > b) ? a : b;
+}
+
+// Pick a random item in arr that has given value
+size_t pick_value_f(const float* arr, size_t n, float val, size_t occurrences) {
+	size_t j = RANDI(0, occurrences);
+	for (size_t i = 0; i < n; ++i) {
+		if (arr[i] == val && j-- == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+// Pick a random item in arr that has given value
+size_t pick_value_i(const int* arr, size_t n, int val, size_t occurrences) {
+	size_t j = RANDI(0, occurrences);
+	for (size_t i = 0; i < n; ++i) {
+		if (arr[i] == val && j-- == 0) {
+			return i;
+		}
+	}
+	return -1;
 }

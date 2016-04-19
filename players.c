@@ -189,17 +189,6 @@ static void teresa_init_params(void* params) {
 	}
 }
 
-// Pick a random item in arr that has given value
-int pick_value_f(float* arr, int n, float val, int occurrences) {
-	int j = RANDI(0, occurrences);
-	for (int i = 0; i < n; ++i) {
-		if (arr[i] == val && j-- == 0) {
-			return i;
-		}
-	}
-	return -1;
-}
-
 // Return child with highest UCB score
 teresa_node* teresa_select_best_child(teresa_node* current, float C, bool friendly_turn) {
 	float k = (current->visits == 0) ? 1.0 : C * node_sqlg_visits(current);
