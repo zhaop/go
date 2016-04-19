@@ -244,41 +244,6 @@ teresa_node* teresa_select_best_child(teresa_node* current, float C, bool friend
 	}
 }
 
-// Return child with highest win probability
-teresa_node* teresa_select_likeliest_child(teresa_node* current) {
-	float probs[NMOVES];
-
-	int i = 0;
-	float max_prob = -INFINITY;
-	int nmax_prob = 0;
-	teresa_node* selected_child = NULL;
-	teresa_node* child = current->child;
-	while (child) {
-		float prob = (float)child->wins/child->visits;
-		probs[i] = prob;
-
-		// Count max values
-		if (prob == max_prob) {
-			++nmax_prob;
-		} else if (prob > max_prob) {
-			max_prob = prob;
-			nmax_prob = 1;
-			selected_child = child;
-		}
-
-		++i;
-		child = child->sibling;
-	}
-
-	if (nmax_prob == 1) {
-		return selected_child;
-	} else {
-		int idx_max = pick_value_f(probs, i, max_prob, nmax_prob);
-		assert(idx_max != -1);
-		return teresa_node_sibling(current->child, idx_max);
-	}
-}
-
 // Return most visited child (the one we're most certain of?)
 teresa_node* teresa_select_most_visited_child(teresa_node* current) {
 	float visits[NMOVES];	// float because pick_value_f only takes floats (overkill?)
