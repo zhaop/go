@@ -11,7 +11,7 @@ int main() {
 	long double t0, dt;
 
 	state* st = state_create();
-	int t = 1;
+	int t = 0;
 
 	player human = {"You", &human_play, NULL, NULL};
 
@@ -68,6 +68,8 @@ int main() {
 		player* pl = players[pl_color];
 		player* opponent = players[color_opponent(pl_color)];
 
+		++t;
+
 		wprintf(L"%lc %d %s now playing\n", color_char(pl_color), t, pl->name);
 		state_print(st);
 
@@ -95,7 +97,6 @@ int main() {
 		}
 
 		wprintf(L"\n");
-		++t;
 
 		if (*r) g2(*r, "graph2.json", 8, 8);
 		if (*r2) g2(*r2, "graph4.json", 8, 8);
