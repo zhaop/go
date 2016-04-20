@@ -375,7 +375,7 @@ void graph_tree(FILE* f, teresa_node* node, int depth, int cutoff) {
 			child = child->sibling;
 		}
 		qsort(node_visits, i, sizeof(int), int_desc_cmp);
-		uint thresh = max(node_visits[cutoff-1], 40);
+		uint thresh = max(node_visits[min(cutoff, i)-1], 40);
 		
 		if (i) {
 			child = node->child;

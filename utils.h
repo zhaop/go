@@ -13,6 +13,7 @@ int randi(int, int);
 
 void seed_rand_once();
 
+int min(int, int);
 int max(int, int);
 
 size_t pick_value_f(const float*, size_t, float, size_t);
