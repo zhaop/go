@@ -190,8 +190,11 @@ static void teresa_init_params(void* params) {
 }
 
 // Return child with highest UCB score
-teresa_node* teresa_select_best_child(teresa_node* current, float C, bool friendly_turn) {
-	float k = (current->visits == 0) ? 1.0 : C * node_sqlg_visits(current);
+teresa_node* teresa_select_best_child(teresa_node* current, teresa_params* params, bool friendly_turn) {
+	const float C = params->C;
+	const float FPU = params->FPU;
+
+	const float k = (current->visits == 0) ? 1.0 : C * node_sqlg_visits(current);
 
 	float UCBs[NMOVES];
 
@@ -208,7 +211,7 @@ teresa_node* teresa_select_best_child(teresa_node* current, float C, bool friend
 				UCBs[i] = 1 - node_pwin(child) + k * node_rsqrt_visits(child);
 			}
 		} else {
-			UCBs[i] = INFINITY;
+			UCBs[i] = FPU;
 		}
 
 		// Count max values
@@ -303,6 +306,8 @@ void teresa_destroy_all_children_except_one(teresa_node* parent, teresa_node* ke
 #define PARAM_C 0.5
 
 void pshort(teresa_node* nd) {
+	static teresa_params test_params = {0, 0.5, 1.1, 0, 0};
+
 	wprintf(L"{");
 	
 	if (nd) {
@@ -317,10 +322,10 @@ void pshort(teresa_node* nd) {
 	}
 	wprintf(L"}");
 
-	if (nd && nd->parent && nd == teresa_select_best_child(nd->parent, PARAM_C, true)) {
+	if (nd && nd->parent && nd == teresa_select_best_child(nd->parent, &test_params, true)) {
 		wprintf(L"*");
 	}
-	if (nd && nd->parent && nd == teresa_select_best_child(nd->parent, PARAM_C, false)) {
+	if (nd && nd->parent && nd == teresa_select_best_child(nd->parent, &test_params, false)) {
 		wprintf(L"^");
 	}
 }
@@ -429,7 +434,6 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	teresa_params* params = (teresa_params*) self->params;
 
 	int N = params->N;
-	float C = params->C;
 	// teresa_pool* pool = params->pool;
 	teresa_node* root = params->root;
 	root->pl = notme;	// Root node is "what was just played", i.e. by opponent
@@ -442,7 +446,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 
 		// Recurse into tree (think of next moves from what you played before)
 		while (current->child) {
-			current = teresa_select_best_child(current, C, st.nextPlayer == me);
+			current = teresa_select_best_child(current, params, st.nextPlayer == me);
 			go_play_move(&st, &(current->mv));
 		}
 

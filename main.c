@@ -18,12 +18,12 @@ int main() {
 	// karl_params karlp = {80000};
 	// player karl = {"Karl", &karl_play, NULL, &karlp};
 
-	teresa_params teresap = {200000, 0.5, NULL, NULL};
+	teresa_params teresap = {200000, 0.5, 1.1, NULL, NULL};
 	player teresa = {"Teresa", &teresa_play, &teresa_observe, &teresap};
 
 	teresa_node** r = &(teresap.root);
 
-	teresa_params teresa2p = {200000, 0.5, NULL, NULL};
+	teresa_params teresa2p = {200000, 0.5, 1.1, NULL, NULL};
 	player teresa2 = {"Teresa 2", &teresa_play, &teresa_observe, &teresa2p};
 
 	teresa_node** r2 = &(teresa2p.root);

@@ -50,6 +50,7 @@ typedef struct teresa_pool {
 typedef struct {
 	int N;
 	float C;
+	float FPU;
 	struct teresa_pool* pool;
 	struct teresa_node* root;
 } teresa_params;
