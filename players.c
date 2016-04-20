@@ -446,54 +446,44 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 			go_play_move(&st, &(current->mv));
 		}
 
-		if (go_is_game_over(&st)) {
-			// Propagate result up the tree (also TODO HACK HACK HACK HACK)
-			float score[3] = {0.0, 0.0, 0.0};
-			state_score(&st, score, false);
-			do {
-				++current->visits;
-				if (score[me] > score[notme]) {
-					++current->wins;
-				}
-				current->pwin = NAN;
-				current->sqlg_visits = NAN;
-				current->rsqrt_visits = NAN;
-
-				current = current->parent;
-			} while (current != NULL);
-
-			continue;
-		}
-
-		// Expansion (find things you never thought of before)
-		move list[NMOVES];
-		int n = go_get_reasonable_moves(&st, list);
-		int r = RANDI(0, n);
-		teresa_node* child = NULL;
-		teresa_node* prev_child = NULL;
-		teresa_node* selected_child = NULL;
-		for (int i = 0; i < n; ++i) {
-
-			child = teresa_node_create();
-			assert(child);
-
-			teresa_node_init(child);
-
-			if (prev_child) prev_child->sibling = child;
-			if (i == 0) current->child = child;
-			child->parent = current;
-			child->pl = color_opponent(current->pl);
-			child->mv = list[i];
-
-			if (i == r) selected_child = child;
-			prev_child = child;
-		}
-
-		// Simulation (guessing what happens if you do certain things)
-		current = selected_child;
-		go_play_move(&st, &(current->mv));
+		// Estimate result of node, expanding & playing thru if necessary
 		playout_result result;
-		go_play_out(&st, &result);
+		if (go_is_game_over(&st)) {
+			
+			// Leaf node; don't expand, just find out who won
+			result.winner = state_winner(&st);
+
+		} else {
+
+			// Expansion (find things you never thought of before)
+			move list[NMOVES];
+			int n = go_get_reasonable_moves(&st, list);
+			int r = RANDI(0, n);
+			teresa_node* child = NULL;
+			teresa_node* prev_child = NULL;
+			teresa_node* selected_child = NULL;
+			for (int i = 0; i < n; ++i) {
+
+				child = teresa_node_create();
+				assert(child);
+
+				teresa_node_init(child);
+
+				if (prev_child) prev_child->sibling = child;
+				if (i == 0) current->child = child;
+				child->parent = current;
+				child->pl = color_opponent(current->pl);
+				child->mv = list[i];
+
+				if (i == r) selected_child = child;
+				prev_child = child;
+			}
+
+			// Simulation (guessing what happens if you do certain things)
+			current = selected_child;
+			go_play_move(&st, &(current->mv));
+			go_play_out(&st, &result);
+		}
 
 		// Back-propagation (remember what's learned)
 		do {
