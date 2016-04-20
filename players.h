@@ -30,7 +30,7 @@ struct teresa_node;
 typedef struct teresa_node {
 	struct teresa_node* parent;	// 8b
 	struct teresa_node* sibling;// 8b
-	struct teresa_node* child;	// 8b = 24
+	struct teresa_node* child;	// 8b
 	float pwin;					// 4b
 	float sqlg_visits;			// 4b	// BUG ONLY READ USING node_sqlg_visits(&node)
 	float rsqrt_visits;			// 4b	// BUG ONLY READ USING node_rsqrt_visits(&node)
@@ -38,6 +38,9 @@ typedef struct teresa_node {
 	uint32_t visits;			// 4b	// BUG Must also set pwin, sqlg_visits, rsqrt_visits NAN!
 	move mv;					// 2b
 	color pl;					// 1b
+	move* unexplored_moves;		// 8b
+	uint8_t unexplored_count;	// 2b
+								// = 57b => 64b
 } teresa_node;
 
 struct teresa_pool;
