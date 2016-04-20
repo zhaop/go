@@ -268,23 +268,21 @@ teresa_node* teresa_select_most_visited_child(teresa_node* current) {
 	}
 }
 
-void teresa_print_heatmap(state* st, teresa_node* current, float C) {
-	double UCBs[NMOVES];
+void teresa_print_heatmap(state* st, teresa_node* current) {
+	double values[NMOVES];
 	move mvs[NMOVES];
-
-	float k = (current->visits == 0) ? 1 : C * node_sqlg_visits(current);
 
 	int i = 0;
 	teresa_node* child = current->child;
 	while (child) {
-		UCBs[i] = (child->visits == 0) ? INFINITY : node_pwin(child) + k * node_rsqrt_visits(child);
+		values[i] = node_pwin(child);
 		mvs[i] = child->mv;
 
 		++i;
 		child = child->sibling;
 	}
 
-	go_print_heatmap(st, mvs, UCBs, i);
+	go_print_heatmap(st, mvs, values, i);
 }
 
 void teresa_destroy_all_children_except_one(teresa_node* parent, teresa_node* keep) {
@@ -518,7 +516,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	move best = best_node->mv;
 
 	wprintf(L"\nDecision heatmap\n");
-	teresa_print_heatmap(st0, root, C);
+	teresa_print_heatmap(st0, root);
 
 	if (me == BLACK) {
 		g2(root, "graph1.json", 8, 8);
