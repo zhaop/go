@@ -374,8 +374,8 @@ void graph_tree(FILE* f, teresa_node* node, int depth, int cutoff) {
 			++i;
 			child = child->sibling;
 		}
-		qsort(node_visits, NMOVES, sizeof(int), int_desc_cmp);
-		int thresh = max(node_visits[cutoff-1], 40);
+		qsort(node_visits, i, sizeof(int), int_desc_cmp);
+		uint thresh = max(node_visits[cutoff-1], 40);
 		
 		if (i) {
 			child = node->child;
@@ -411,8 +411,6 @@ void g2(teresa_node* root, const char* path, int depth, int thresh) {
 		wprintf(L"root is NULL\n");
 		return;
 	}
-
-	return;
 
 	const char fmode = 'w';
 	
