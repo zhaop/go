@@ -34,8 +34,8 @@ typedef struct teresa_node {
 	float pwin;					// 4b
 	float sqlg_visits;			// 4b	// BUG ONLY READ USING node_sqlg_visits(&node)
 	float rsqrt_visits;			// 4b	// BUG ONLY READ USING node_rsqrt_visits(&node)
-	uint16_t wins;				// 2b	// BUG Must also set pwin NAN!
-	uint16_t visits;			// 2b	// BUG Must also set pwin, sqlg_visits, rsqrt_visits NAN!
+	uint32_t wins;				// 4b	// BUG Must also set pwin NAN!
+	uint32_t visits;			// 4b	// BUG Must also set pwin, sqlg_visits, rsqrt_visits NAN!
 	move mv;					// 2b
 	color pl;					// 1b
 } teresa_node;
