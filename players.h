@@ -12,16 +12,6 @@ typedef struct player {
 	void* params;
 } player;
 
-move_result human_play(player*, state*, move*);
-
-move_result randy_play(player*, state*, move*);
-
-typedef struct {
-	int N;
-} karl_params;
-
-move_result karl_play(player*, state*, move*);
-
 
 #define N_TERESA_NODES 80000*(COUNT*0)+1
 #define TERESA_RESIGN_THRESHOLD 0.01
