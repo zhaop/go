@@ -6,11 +6,11 @@ move_result karl_play(player* self, state* st, move* mv) {
 
 	state test_st;
 
-	move legal_moves[NMOVES];
-	int num_moves = go_get_legal_moves(st, legal_moves);
+	move reasonable_moves[NMOVES];
+	int num_moves = go_get_reasonable_moves(st, reasonable_moves);
 
 	if (num_moves == 1) {
-		*mv = legal_moves[0];
+		*mv = reasonable_moves[0];
 		return go_play_move(st, mv);
 	}
 
@@ -32,7 +32,7 @@ move_result karl_play(player* self, state* st, move* mv) {
 		state_copy(st, &test_st);
 
 		int starting_move_idx = RANDI(0, num_moves);
-		move starting_move = legal_moves[starting_move_idx];
+		move starting_move = reasonable_moves[starting_move_idx];
 		go_play_move(&test_st, &starting_move);
 
 		playout_result result;
@@ -58,12 +58,12 @@ move_result karl_play(player* self, state* st, move* mv) {
 
 		if (pwin[i] > best_pwin) {
 			best_pwin = pwin[i];
-			best_pwin_move = legal_moves[i];
+			best_pwin_move = reasonable_moves[i];
 		};
 	}
 
 	wprintf(L"\nDecision heatmap\n");
-	go_print_heatmap(st, legal_moves, pwin, num_moves);
+	go_print_heatmap(st, reasonable_moves, pwin, num_moves);
 
 	wprintf(L"Going with ");
 	move_print(&best_pwin_move);
