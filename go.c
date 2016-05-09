@@ -144,8 +144,8 @@ void move_sprint(wchar_t str[3], move* mv) {
 		return;
 	}
 
-	int i = *mv/SIZE;
-	int j = *mv%SIZE;
+	int i = *mv / SIZE;
+	int j = *mv - i * SIZE;
 	swprintf(str, 3, L"%c%c", index_char(i), index_char(j));
 }
 
@@ -823,7 +823,7 @@ bool go_is_move_reasonable(state* st, move* mv_ptr) {
 		}
 	} else {
 		int mv_i = mv / SIZE;
-		int mv_j = mv % SIZE;
+		int mv_j = mv - mv_i * SIZE;
 		if (fills_in_friendly_eye(st->board, me, mv_i, mv_j)) {
 			return false;
 		}
