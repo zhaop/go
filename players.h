@@ -39,7 +39,7 @@ typedef struct teresa_node {
 	move mv;					// 2b
 	color pl;					// 1b
 	move* unexplored_moves;		// 8b
-	uint8_t unexplored_count;	// 2b
+	uint16_t unexplored_count;	// 2b
 								// = 57b => 64b
 } teresa_node;
 

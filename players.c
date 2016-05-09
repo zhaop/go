@@ -211,7 +211,7 @@ int teresa_generate_unexplored_moves(state* st, teresa_node* nd) {
 
 // Assumes nd->unexplored_count >= 1
 move teresa_extract_unexplored_move(teresa_node* nd) {
-	const uint8_t count = nd->unexplored_count;
+	const uint16_t count = nd->unexplored_count;
 	
 	int r = RANDI(0, count);
 	move mv = nd->unexplored_moves[r];
