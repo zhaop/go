@@ -1,7 +1,8 @@
 #include <locale.h>
 #include <wchar.h>
 #include "go.h"
-#include "players.h"
+#include "players/human.h"
+#include "players/teresa.h"
 #include "utils.h"
 
 int main() {

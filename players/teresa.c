@@ -4,6 +4,7 @@
 #include <wchar.h>
 
 #include "players.h"
+#include "players/teresa.h"
 #include "utils.h"
 
 static unsigned int teresa_node_count = 0;
