@@ -22,12 +22,12 @@ int main() {
 	teresa_params teresap = {20000, 0.5, 1.1, NULL, NULL};
 	player teresa = {"Teresa", &teresa_play, &teresa_observe, &teresap};
 
-	teresa_node** r = &(teresap.root);
+	// teresa_old_node** r = &(teresap.old_root);
 
 	teresa_params teresa2p = {20000, 0.5, 1.1, NULL, NULL};
 	player teresa2 = {"Teresa 2", &teresa_play, &teresa_observe, &teresa2p};
 
-	teresa_node** r2 = &(teresa2p.root);
+	// teresa_old_node** r2 = &(teresa2p.old_root);
 
 	player* players[3];
 	players[BLACK] = &teresa;
@@ -99,8 +99,9 @@ int main() {
 
 		wprintf(L"\n");
 
-		if (*r) g2(*r, "graph2.json", 8, 8);
-		if (*r2) g2(*r2, "graph4.json", 8, 8);
+		// TODO Uncomment once adapted to new node structure
+		// if (*r) g2(*r, "graph2.json", 8, 8);
+		// if (*r2) g2(*r2, "graph4.json", 8, 8);
 	}
 
 	color winner = state_winner(st);
