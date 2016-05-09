@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <wchar.h>
 
 #define SIZE 5
 #define COUNT (SIZE*SIZE)
