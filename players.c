@@ -566,8 +566,13 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	teresa_node* best_node = teresa_select_most_visited_child(root);
 	move best = best_node->mv;
 
-	// wprintf(L"\nDecision heatmap\n");
-	// teresa_print_heatmap(st0, root);
+	if (TERESA_DEBUG) {
+		// wprintf(L"\nDecision heatmap\n");
+		// teresa_print_heatmap(st0, root);
+
+		wprintf(L"Win estimated at %.1f%%\n", node_pwin(best_node)*100);
+		wprintf(L"Confidence is %.1f%%\n", (float)best_node->visits/best_node->parent->visits*100);
+	}
 
 	if (me == BLACK) {
 		g2(root, "graph1.json", 8, 8);
@@ -646,6 +651,20 @@ void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) 
 	}
 
 	if (found) {
+		if (TERESA_DEBUG) {
+			wprintf(L"Win estimated at %.1f%%\n", node_pwin(found)*100);
+			wprintf(L"Move is %.1f%% probable\n", (float)found->visits/root->visits*100);
+			
+			teresa_node* expected = teresa_select_most_visited_child(root);
+			if (expected == found) {
+				wprintf(L"This is the expected move");
+			} else {
+				wprintf(L"Expected move is ");
+				move_print(&(expected->mv));
+			}
+			wprintf(L" (%.1f%% win, %.1f%% confidence)\n", node_pwin(expected)*100, (float)expected->visits/root->visits*100);
+		}
+		
 		teresa_destroy_all_children_except_one(root, found);
 		params->root = root = found;
 	} else if (*opponent_mv == MOVE_PASS) {
