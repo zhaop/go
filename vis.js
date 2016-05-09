@@ -80,7 +80,7 @@ function update(source) {
 		.attr("dy", ".35em")
 		.attr("text-anchor", "start")
 		// .attr("transform", function(d) { return d.x < 180 ? "translate(0)" : "rotate(180)translate(-" + (Math.log10(d.visits) * 8.5)  + ")"; })///
-		.text(function(d) { return d.visits + ' (' + Math.round(d.wins/d.visits*1000)/10 + ')'; })
+		.text(function(d) { return d.move + ': ' + Math.round(d.visits/100)/10 + 'k (' + Math.round(d.wins/d.visits*1000)/10 + ')'; })
 		.style("fill-opacity", 1e-6);
 
 	// Transition nodes to their new position.
