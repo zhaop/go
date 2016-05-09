@@ -1094,6 +1094,9 @@ void go_print_heatmap(state* st, move* moves, double* values, int num_moves) {
 		if (moves[i] == MOVE_PASS) {
 			valpass = values[i];
 			continue;
+		} else if (moves[i] < 0) {
+			// Ignore other non-standard (negative) moves like resignation
+			continue;
 		}
 
 		valboard[moves[i]] = values[i];
