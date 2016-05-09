@@ -282,13 +282,6 @@ void pshort(teresa_node* nd) {
 			((double)nd->wins/nd->visits) + k / sqrt(nd->visits), 1 - ((double)nd->wins/nd->visits) + k / sqrt(nd->visits));
 	}
 	wprintf(L"}");
-
-	// if (nd && nd->parent && nd == teresa_select_best_child(nd->parent, &test_params, true)) {
-	// 	wprintf(L"*");
-	// }
-	// if (nd && nd->parent && nd == teresa_select_best_child(nd->parent, &test_params, false)) {
-	// 	wprintf(L"^");
-	// }
 }
 
 void p(teresa_node* nd) {
