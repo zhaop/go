@@ -70,7 +70,7 @@ static inline void tree_free(teresa_tree* tree, teresa_node nd) {
 }
 
 // Destroys a node's siblings and children
-void teresa_node_destroy_recursive(teresa_tree* tree, teresa_node nd) {
+static void teresa_node_destroy_recursive(teresa_tree* tree, teresa_node nd) {
 	if (NODE_CHILD(nd)) {
 		teresa_node_destroy_recursive(tree, NODE_CHILD(nd));
 	}
@@ -96,7 +96,7 @@ static inline void teresa_node_destroy(teresa_tree* tree, teresa_node nd) {
 	--teresa_node_count;
 }
 
-teresa_node teresa_node_sibling(teresa_tree* tree, teresa_node nd, int idx) {
+static inline teresa_node teresa_node_sibling(teresa_tree* tree, teresa_node nd, int idx) {
 	for (int i = 0; i < idx; ++i) {
 		nd = NODE_SIBLING(nd);
 		if (!nd) {
@@ -151,7 +151,7 @@ static void teresa_init_params(void* params) {
 }
 
 // Generate list of unexplored moves for a node, return number of moves
-int teresa_generate_unexplored_moves(state* st, teresa_tree* tree, teresa_node nd) {
+static int teresa_generate_unexplored_moves(state* st, teresa_tree* tree, teresa_node nd) {
 	move list[NMOVES];
 	int n = go_get_reasonable_moves(st, list);
 
@@ -169,7 +169,7 @@ int teresa_generate_unexplored_moves(state* st, teresa_tree* tree, teresa_node n
 }
 
 // Assumes NODE_UNEXPLORED_COUNT(nd) >= 1
-move teresa_extract_unexplored_move(teresa_tree* tree, teresa_node nd) {
+static move teresa_extract_unexplored_move(teresa_tree* tree, teresa_node nd) {
 	const uint16_t count = NODE_UNEXPLORED_COUNT(nd);
 
 	int r = RANDI(0, count);
@@ -188,7 +188,7 @@ move teresa_extract_unexplored_move(teresa_tree* tree, teresa_node nd) {
 }
 
 // Creates a new child node for given move & inserts it correctly into tree
-teresa_node teresa_node_create_child(teresa_tree* tree, teresa_node parent, move* mv) {
+static teresa_node teresa_node_create_child(teresa_tree* tree, teresa_node parent, move* mv) {
 	teresa_node child = teresa_node_create(tree);
 	assert(child);
 
@@ -207,7 +207,7 @@ teresa_node teresa_node_create_child(teresa_tree* tree, teresa_node parent, move
 	return child;
 }
 
-teresa_node teresa_select_best_child(teresa_tree* tree, teresa_node current, teresa_params* params, bool friendly_turn, float lower_bound) {
+static teresa_node teresa_select_best_child(teresa_tree* tree, teresa_node current, teresa_params* params, bool friendly_turn, float lower_bound) {
 	const float C = params->C;
 	const float FPU = params->FPU;
 
@@ -260,7 +260,7 @@ teresa_node teresa_select_best_child(teresa_tree* tree, teresa_node current, ter
 }
 
 // Return most visited child (the one we're most certain of?)
-teresa_node teresa_select_most_visited_child(teresa_tree* tree, teresa_node current) {
+static teresa_node teresa_select_most_visited_child(teresa_tree* tree, teresa_node current) {
 	float visits[NMOVES];	// float because pick_value_f only takes floats (overkill?)
 
 	int i = 0;
@@ -294,7 +294,7 @@ teresa_node teresa_select_most_visited_child(teresa_tree* tree, teresa_node curr
 	}
 }
 
-void teresa_print_heatmap(state* st, teresa_tree* tree, teresa_node nd) {
+static void teresa_print_heatmap(state* st, teresa_tree* tree, teresa_node nd) {
 	double values[NMOVES];
 	move mvs[NMOVES];
 
@@ -311,7 +311,7 @@ void teresa_print_heatmap(state* st, teresa_tree* tree, teresa_node nd) {
 	go_print_heatmap(st, mvs, values, i);
 }
 
-void teresa_destroy_all_children_except_one(teresa_tree* tree, teresa_node parent, teresa_node keep) {
+static void teresa_destroy_all_children_except_one(teresa_tree* tree, teresa_node parent, teresa_node keep) {
 	teresa_node next;
 	teresa_node current = NODE_CHILD(parent);
 	do {
@@ -368,11 +368,11 @@ void p(teresa_tree* tree, teresa_node nd) {
 	wprintf(L"\n}\n");
 }
 
-int int_desc_cmp(const void* a, const void* b) {
+static int int_desc_cmp(const void* a, const void* b) {
 	return *((int*)b) - *((int*)a);
 }
 
-void graph_tree(FILE* f, teresa_tree* tree, teresa_node nd, int depth, int cutoff) {
+static void graph_tree(FILE* f, teresa_tree* tree, teresa_node nd, int depth, int cutoff) {
 	if (!nd) return;
 	
 	wchar_t mv_str[3];
@@ -555,7 +555,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	return go_play_move(st0, &best);
 }
 
-void teresa_reset_all_trace_of_move(teresa_tree* tree, teresa_node nd, move* mv) {
+static void teresa_reset_all_trace_of_move(teresa_tree* tree, teresa_node nd, move* mv) {
 	teresa_node child = NODE_CHILD(nd);
 	teresa_node prev = NODE_NULL;
 	teresa_node next = NODE_NULL;

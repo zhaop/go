@@ -179,7 +179,7 @@ static inline void stone_init(dot* stone, color player, group* gp) {
 }
 
 // (Re-)initialize a piece of memory as a lone group
-void group_init(group* gp, dot* head, int freedoms) {
+static inline void group_init(group* gp, dot* head, int freedoms) {
 	gp->head = head;
 	gp->length = 1;
 	gp->freedoms = freedoms;
@@ -219,7 +219,7 @@ static inline void group_list_insert(group** head, group* item) {
 }
 
 // Remember to call group_init after borrowing a group from the pool
-group* group_pool_borrow(group_pool* pool) {
+static inline group* group_pool_borrow(group_pool* pool) {
 	if (pool->free == NULL) {
 		return NULL;
 	}
@@ -234,7 +234,7 @@ group* group_pool_borrow(group_pool* pool) {
 	return item;
 }
 
-bool group_pool_return(group_pool* pool, group* item) {
+static inline bool group_pool_return(group_pool* pool, group* item) {
 	if (!group_list_remove(&pool->used, item)) {
 		return false;
 	}
@@ -278,7 +278,7 @@ static inline void group_add_stone(group* gp, dot* stone, int liberties) {
 
 // Merges smaller group into bigger, and returns the latter
 // DO NOT have any references to these groups prior to call (one is destroyed)
-group* group_merge_and_destroy_smaller(group_pool* pool, group* gp1, group* gp2) {
+static group* group_merge_and_destroy_smaller(group_pool* pool, group* gp1, group* gp2) {
 	if (gp1 == gp2) {
 		return gp1;
 	}
@@ -316,7 +316,7 @@ group* group_merge_and_destroy_smaller(group_pool* pool, group* gp1, group* gp2)
 
 // Removes all of a group's stones from the board, returns number captured
 // Caller must destroy gp afterwards
-int group_kill_stones(dot* board, group* gp) {
+static int group_kill_stones(dot* board, group* gp) {
 	int captured = 0;
 	dot* head = gp->head;
 	color enemy = (head->player == BLACK) ? WHITE : BLACK;
@@ -348,7 +348,7 @@ int group_kill_stones(dot* board, group* gp) {
 
 // Recursively update the territory struct until all accounted for
 // Uses a strange flood fill algorithm
-void count_territory(dot* board, bool* already_counted, int i, int j, territory* tr) {
+static void count_territory(dot* board, bool* already_counted, int i, int j, territory* tr) {
 	color neighbor_player;
 
 	ALREADY_COUNTED(i, j) = true;
@@ -614,7 +614,7 @@ bool fills_in_friendly_eye(dot* board, color friendly, int i, int j) {
 }
 
 // True if ko rule forbids move
-bool check_possible_ko(dot* board, int possibleKo, int i, int j) {
+static inline bool check_possible_ko(dot* board, int possibleKo, int i, int j) {
 	if (possibleKo == i*SIZE + j) {
 		group* gp = GROUP_AT(i, j);
 		return (gp->length == 1) && (gp->freedoms == 1);
@@ -640,7 +640,7 @@ static inline int remove_dead_neighbor_enemy(dot* board, group_pool* pool, color
 	return 0;
 }
 
-int count_liberties(dot* board, int i, int j) {
+static inline int count_liberties(dot* board, int i, int j) {
 	int liberties = 0;
 	if (UP_OK    && BOARD(i-1, j).player == EMPTY) ++liberties;
 	if (LEFT_OK  && BOARD(i, j-1).player == EMPTY) ++liberties;
@@ -657,7 +657,7 @@ static inline bool has_living_friendlies(dot* board, color friendly, int i, int 
 	return false;
 }
 
-bool has_dying_friendlies(dot* board, color friendly, int i, int j) {
+static inline bool has_dying_friendlies(dot* board, color friendly, int i, int j) {
 	if (UP_OK    && BOARD(i-1, j).player == friendly && GROUP_AT(i-1, j)->freedoms == 0) return true;
 	if (LEFT_OK  && BOARD(i, j-1).player == friendly && GROUP_AT(i, j-1)->freedoms == 0) return true;
 	if (RIGHT_OK && BOARD(i, j+1).player == friendly && GROUP_AT(i, j+1)->freedoms == 0) return true;
@@ -665,7 +665,7 @@ bool has_dying_friendlies(dot* board, color friendly, int i, int j) {
 	return false;
 }
 
-group* create_lone_group(dot* stone, group_pool* pool, color player, int liberties) {
+static inline group* create_lone_group(dot* stone, group_pool* pool, color player, int liberties) {
 	stone->player = player;
 	stone->prev = stone;
 	stone->next = stone;

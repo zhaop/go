@@ -10,7 +10,7 @@
 // uint64_t SEED1, SEED2
 #define INIT_MAKE_RANDI(SEED1, SEED2) \
 static uint64_t xorshift128plus_state[2] = {(SEED1), (SEED2)}; \
-static uint64_t xorshift128plus() { \
+static inline uint64_t xorshift128plus() { \
 	uint64_t x = xorshift128plus_state[0]; \
 	uint64_t const y = xorshift128plus_state[1]; \
 	xorshift128plus_state[0] = y; \
@@ -27,7 +27,7 @@ static uint64_t xorshift128plus() { \
 // int PARAM_A
 // int PARAM_B
 #define MAKE_RANDI32(FUNCTION_NAME, PARAM_A, PARAM_B) \
-static int FUNCTION_NAME(void) { \
+static inline int FUNCTION_NAME(void) { \
 	static int outbuf[60]; \
 	static uint8_t avail = 0; \
 	if (avail > 0) { \
@@ -121,7 +121,7 @@ static int FUNCTION_NAME(void) { \
 // int PARAM_A
 // int PARAM_B
 #define MAKE_RANDI128(FUNCTION_NAME, PARAM_A, PARAM_B) \
-static int FUNCTION_NAME(void) { \
+static inline int FUNCTION_NAME(void) { \
 	static int outbuf[54]; \
 	static uint8_t avail = 0; \
 	if (avail > 0) { \
@@ -210,7 +210,7 @@ static int FUNCTION_NAME(void) { \
 // int PARAM_A
 // int PARAM_B
 #define MAKE_RANDI512(FUNCTION_NAME, PARAM_A, PARAM_B) \
-static int FUNCTION_NAME(void) { \
+static inline int FUNCTION_NAME(void) { \
 	static int outbuf[70]; \
 	static uint8_t avail = 0; \
 	if (avail > 0) { \
