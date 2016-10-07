@@ -27,6 +27,17 @@ INIT_MAKE_RANDI(42, 43);
 #endif
 
 
+#ifdef __APPLE__
+wchar_t color_char(color player) {
+	if (player == BLACK) {
+		return L'⚫';
+	} else if (player == WHITE) {
+		return L'⚪';
+	} else {
+		return L'·';
+	}
+}
+#else
 wchar_t color_char(color player) {
 	if (player == BLACK) {
 		return L'⭘';
@@ -36,6 +47,7 @@ wchar_t color_char(color player) {
 		return L'·';
 	}
 }
+#endif
 
 color color_opponent(color player) {
 	return (player == BLACK) ? WHITE : (player == WHITE ? BLACK : NEUTRAL);
@@ -76,8 +88,10 @@ bool is_star_point(int i, int j) {
 		case 19 :
 			return ((i == 3) || (i == 9) || (i == 15)) && ((j == 3) || (j == 9) || (j == 15));
 			break;
+		default :
+			return false;
+			break;
 	}
-	return false;
 }
 
 wchar_t dot_char(int i, int j, color player) {
