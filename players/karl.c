@@ -7,11 +7,11 @@ move_result karl_play(player* self, state* st, move* mv) {
 	state test_st;
 
 	move reasonable_moves[NMOVES];
-	int num_moves = go_get_reasonable_moves(st, reasonable_moves);
+	int num_moves = chess_get_reasonable_moves(st, reasonable_moves);
 
 	if (num_moves == 1) {
 		*mv = reasonable_moves[0];
-		return go_play_move(st, mv);
+		return chess_play_move(st, mv);
 	}
 
 	color me = st->nextPlayer;
@@ -33,10 +33,10 @@ move_result karl_play(player* self, state* st, move* mv) {
 
 		int starting_move_idx = RANDI(0, num_moves);
 		move starting_move = reasonable_moves[starting_move_idx];
-		go_play_move(&test_st, &starting_move);
+		chess_play_move(&test_st, &starting_move);
 
 		playout_result result;
-		go_play_out(&test_st, &result);
+		chess_play_out(&test_st, &result);
 
 		if (result.winner == me) {
 			++win[starting_move_idx];
@@ -63,13 +63,13 @@ move_result karl_play(player* self, state* st, move* mv) {
 	}
 
 	wprintf(L"\nDecision heatmap\n");
-	go_print_heatmap(st, reasonable_moves, pwin, num_moves);
+	chess_print_heatmap(st, reasonable_moves, pwin, num_moves);
 
 	wprintf(L"Going with ");
 	move_print(&best_pwin_move);
 	wprintf(L" at %.1f%%\n", best_pwin*100);
 
 	*mv = best_pwin_move;
-	return go_play_move(st, mv);
+	return chess_play_move(st, mv);
 }
 

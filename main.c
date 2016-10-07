@@ -1,6 +1,6 @@
 #include <locale.h>
 #include <wchar.h>
-#include "go.h"
+#include "chess.h"
 #include "players/human.h"
 #include "players/teresa.h"
 #include "utils.h"
@@ -15,6 +15,7 @@ int main() {
 	int t = 0;
 
 	player human = {"You", &human_play, NULL, NULL};
+	player human2 = {"You 2", &human_play, NULL, NULL};
 
 	// karl_params karlp = {80000};
 	// player karl = {"Karl", &karl_play, NULL, &karlp};
@@ -30,8 +31,8 @@ int main() {
 	// teresa_old_node** r2 = &(teresa2p.old_root);
 
 	player* players[3];
-	players[BLACK] = &teresa;
-	players[WHITE] = &teresa2;
+	players[WHITE] = &human;
+	players[BLACK] = &human2;
 
 	long double sum_dt = 0;
 
@@ -60,7 +61,7 @@ int main() {
 	// return 0;
 
 	while (1) {
-		if (go_is_game_over(st)) {
+		if (chess_is_game_over(st)) {
 			state_print(st);
 			break;
 		}
@@ -106,13 +107,8 @@ int main() {
 
 	color winner = state_winner(st);
 	color loser = color_opponent(winner);
-	if (st->passes == 2) {
-		float final_score[3];
-		state_score(st, final_score, false);
-		wprintf(L"Game over: %lc wins by %.1f points.\n", color_char(winner), final_score[winner] - final_score[loser]);
-	} else if (st->passes == 3) {
-		wprintf(L"Game over: %lc wins by resignation\n", color_char(winner));
-	}
+	wprintf(L"Game over: %lc wins\n", color_char(winner));
+	// TODO if (resignation) wprintf(L"Game over: %lc wins by resignation\n", color_char(winner));
 
 	wprintf(L"Average thinking time: %.2Lf ms\n", sum_dt/t*1e3);
 

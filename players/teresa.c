@@ -29,8 +29,8 @@ static inline void teresa_node_init(teresa_tree* tree, teresa_node node) {
 	NODE_PARENT(node) = NODE_NULL;
 	NODE_SIBLING(node) = NODE_NULL;
 	NODE_CHILD(node) = NODE_NULL;
-	NODE_PL(node) = NEUTRAL;
-	NODE_MV(node) = MOVE_PASS;
+	NODE_PL(node) = EMPTY;
+	NODE_MV(node) = MOVE_NULL;
 	NODE_WINS(node) = 0;
 	NODE_VISITS(node) = 0;
 	NODE_PWIN(node) = NAN;
@@ -153,7 +153,7 @@ static void teresa_init_params(void* params) {
 // Generate list of unexplored moves for a node, return number of moves
 static int teresa_generate_unexplored_moves(state* st, teresa_tree* tree, teresa_node nd) {
 	move list[NMOVES];
-	int n = go_get_reasonable_moves(st, list);
+	int n = chess_get_reasonable_moves(st, list);
 
 	move* unexplored_moves = malloc(n * sizeof(move));
 	assert(unexplored_moves);
@@ -308,7 +308,7 @@ static void teresa_print_heatmap(state* st, teresa_tree* tree, teresa_node nd) {
 		child = NODE_SIBLING(child);
 	}
 
-	go_print_heatmap(st, mvs, values, i);
+	chess_print_heatmap(st, mvs, values, i);
 }
 
 static void teresa_destroy_all_children_except_one(teresa_tree* tree, teresa_node parent, teresa_node keep) {
@@ -475,13 +475,13 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 				child = teresa_select_best_child(tree, current, params, st.nextPlayer == me, -INFINITY);
 			}
 			current = child;
-			go_play_move(&st, &NODE_MV(current));
+			chess_play_move(&st, &NODE_MV(current));
 		}
 
 		playout_result result;
 
 		// Estimate result of node, expanding & playing thru if necessary
-		if (go_is_game_over(&st)) {
+		if (chess_is_game_over(&st)) {
 			
 			// Leaf node; don't expand, just find out who won
 			result.winner = state_winner(&st);
@@ -496,8 +496,8 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 			current = teresa_node_create_child(tree, current, &mv);
 
 			// Simulation (guessing what happens if you do certain things)
-			go_play_move(&st, &NODE_MV(current));
-			go_play_out(&st, &result);
+			chess_play_move(&st, &NODE_MV(current));
+			chess_play_out(&st, &result);
 		}
 
 		// Back-propagation (remember what's learned)
@@ -540,7 +540,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 		teresa_node_destroy(tree, root);
 		tree->root = NODE_NULL;
 		*mv = MOVE_RESIGN;
-		return go_play_move(st0, mv);
+		return chess_play_move(st0, mv);
 	}
 
 	// Destroy now useless children (forget everything unrelated to selected best move)
@@ -552,7 +552,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	}
 
 	*mv = best;
-	return go_play_move(st0, &best);
+	return chess_play_move(st0, &best);
 }
 
 static void teresa_reset_all_trace_of_move(teresa_tree* tree, teresa_node nd, move* mv) {
@@ -631,10 +631,6 @@ void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) 
 		
 		teresa_destroy_all_children_except_one(tree, root, found);
 		tree->root = root = found;
-	} else if (*opponent_mv == MOVE_PASS) {
-		wprintf(L"I observed an unexpected pass, which confuses me\n");
-		teresa_node_destroy(tree, root);
-		tree->root = NODE_NULL;
 	} else if (*opponent_mv == MOVE_RESIGN) {
 		wprintf(L"I observed a resignation\n");
 		teresa_node_destroy(tree, root);

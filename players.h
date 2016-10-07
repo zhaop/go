@@ -2,7 +2,7 @@
 #define PLAYERS_H
 
 #include <stdint.h>
-#include "go.h"
+#include "chess.h"
 
 struct player;
 typedef struct player {

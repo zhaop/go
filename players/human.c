@@ -13,14 +13,14 @@ move_result human_play(player* self, state* st, move* mv) {
 
 		if (!move_parse(mv, mv_in)) {
 			wprintf(L"Invalid input\n");
-		} else if (!go_is_move_legal(st, mv)) {
+		} else if (!chess_is_move_legal(st, mv)) {
 			wprintf(L"Move is illegal\n");
 		} else {
-			move_result result = go_play_move(st, mv);
+			move_result result = chess_play_move(st, mv);
 
 			if (result != SUCCESS) {
 				wprintf(L"Unsuccessful move: ");
-				go_print_move_result(result);
+				chess_print_move_result(result);
 			} else {
 				return result;
 			}
