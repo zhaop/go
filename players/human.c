@@ -8,8 +8,11 @@ move_result human_play(player* self, state* st, move* mv) {
 	while (1) {
 		wprintf(L"Your move: %lc ", color_char(st->nextPlayer));
 		
-		char mv_in[2];	// TODO DANGER BUFFER OVURFLURW
-		scanf("%s", mv_in);
+		char mv_in[5];	// TODO DANGER BUFFER OVURFLURW
+		scanf("%5c", mv_in);
+		fpurge(stdin);
+
+		wprintf(L"Got this: %c%c%c%c%c\n", mv_in[0], mv_in[1], mv_in[2], mv_in[3], mv_in[4]);
 
 		if (!move_parse(mv, mv_in)) {
 			wprintf(L"Invalid input\n");

@@ -29,22 +29,16 @@ wchar_t color_char(color player) {
 }
 
 color color_opponent(color player) {
-	return (player == BLACK) ? WHITE : (player == WHITE ? BLACK : EMPTY);
+	return (player == BLACK) ? WHITE : (player == WHITE ? BLACK : NOBODY);
 }
 
 
-char index_char(int n) {
-	if (n < 8) {
-		return n + 'a';
-	} else {
-		return 0;
-	}
-}
-
-// Returns a positive number, or -1 if invalid character
+// Maps ['a' to 'h'] and ['1' to '8'] to the range of [0 to 7], or returns -1
 static inline int char_index(char c) {
 	if (c >= 'a' && c <= 'h') {
 		return (c - 'a');
+	} else if (c >= '1' && c <= '8') {
+		return (c - '1');
 	} else {
 		return -1;
 	}
@@ -77,28 +71,39 @@ void move_destroy(move* mv) {
 }
 
 // Returns whether move correctly parsed
-bool move_parse(move* mv, char str[2]) {
+bool move_parse(move* mv, char str[5]) {
 	if (str[0] == ':' && str[1] == '/') {
 		*mv = MOVE_RESIGN;
 		return true;
 	}
-
-	// TODO return
-	return false;
+	
+	int fx = char_index(str[0]), fy = char_index(str[1]), tx = char_index(str[3]), ty = char_index(str[4]);
+	if (fx < 0 || fy < 0 || tx < 0 || ty < 0 || (fx == tx && fy == ty)) {
+		return false;
+	}
+	
+	*mv = (fx << 9) + (fy << 6) + (tx << 3) + ty;
+	return true;
 }
 
-// str must be a wchar_t[3]
-void move_sprint(wchar_t str[3], move* mv) {
+// str must be a wchar_t[6]
+void move_sprint(wchar_t str[6], move* mv) {
 	if (*mv == MOVE_RESIGN) {
-		swprintf(str, 3, L":/");
+		swprintf(str, 6, L":/");
 		return;
 	}
 
-	// TODO swprintf
+	char fx, fy, tx, ty;
+	fx =  *mv >> 9;
+	fy = (*mv & (0x07 << 6)) >> 6;
+	tx = (*mv & (0x07 << 3)) >> 3;
+	ty =  *mv & 0x07;
+
+	swprintf(str, 6, L"%c%c-%c%c", fx + 'a', fy + '1', tx + 'a', ty + '1');
 }
 
 void move_print(move* mv) {
-	wchar_t str[3];
+	wchar_t str[6];
 	move_sprint(str, mv);
 	wprintf(str);
 }
@@ -112,6 +117,7 @@ state* state_create() {
 	}
 
 	st->nextPlayer = WHITE;
+	st->status = PLAYING;
 
 	return st;
 }
@@ -128,8 +134,25 @@ void state_destroy(state* st) {
 void state_print(state* st) {
 	color nextPlayer = st->nextPlayer;
 	color enemy = (st->nextPlayer == BLACK) ? WHITE : BLACK;
+	game_status status = st->status;
 
 	wprintf(L"%s plays\n", (nextPlayer == WHITE) ? L"White" : L"Black");
+	if (status != PLAYING) {
+		wprintf(L"Game is over: ");
+		switch (status) {
+			case STALEMATE:
+				wprintf(L"Stalemate\n");
+				break;
+			case CHECKMATE:
+				wprintf(L"Checkmate by %s\n", (enemy == WHITE) ? L"White" : L"Black");
+				break;
+			case RESIGNED:
+				wprintf(L"Resignation by %s\n", (nextPlayer == WHITE) ? L"White" : L"Black");
+				break;
+			default:
+				break;
+		}
+	}
 }
 
 // Debug info about groups & ko
@@ -138,17 +161,28 @@ void state_dump(state* st) {
 }
 
 color state_winner(state* st) {
-	return EMPTY;
+	switch (st->status) {
+		case CHECKMATE:
+		case RESIGNED:
+			return color_opponent(st->nextPlayer);
+			break;
+		case PLAYING:
+		case STALEMATE:
+		default:
+			return NOBODY;
+			break;
+	}
 }
 
 
+// Move-playing function updates game status
 bool chess_is_game_over(state* st) {
-	return false;
+	return st->status != PLAYING;
 }
 
 // State is unchanged at the end (but it can change during execution)
 bool chess_is_move_legal(state* st, move* mv_ptr) {
-	return false;
+	return true;
 }
 
 // Never resign
@@ -263,13 +297,13 @@ void chess_play_out(state* st, playout_result* result) {
 	while (!chess_is_game_over(st)) {
 		if (chess_play_random_move(st, &mv, mv_list) != SUCCESS) {
 			fwprintf(stderr, L"E: chess_play_out couldn't play any moves\n");
-			result->winner = EMPTY;
+			result->winner = NOBODY;
 			return;
 		}
 	}
 
 	// TODO
-	result->winner = EMPTY;
+	result->winner = NOBODY;
 	return;
 }
 

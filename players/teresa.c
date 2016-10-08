@@ -29,7 +29,7 @@ static inline void teresa_node_init(teresa_tree* tree, teresa_node node) {
 	NODE_PARENT(node) = NODE_NULL;
 	NODE_SIBLING(node) = NODE_NULL;
 	NODE_CHILD(node) = NODE_NULL;
-	NODE_PL(node) = EMPTY;
+	NODE_PL(node) = NOBODY;
 	NODE_MV(node) = MOVE_NULL;
 	NODE_WINS(node) = 0;
 	NODE_VISITS(node) = 0;

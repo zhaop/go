@@ -20,7 +20,7 @@ long double timer_now() {
     orwl_timebase /= tb.denom;
     orwl_timestart = (long double) mach_absolute_time();
   }
-  return (long double) (mach_absolute_time() - orwl_timestart) * orwl_timebase;
+  return (long double) (mach_absolute_time() - orwl_timestart) * orwl_timebase * 1e-9;
 }
 
 #else

@@ -87,7 +87,7 @@ int main() {
 
 		wprintf(L"%lc %d %s played ", color_char(pl_color), t, pl->name);
 		move_print(&mv);
-		wprintf(L" [%.0Lf ms]\n", dt*1e3);
+		wprintf(L" (%d) [%.0Lf ms]\n", mv, dt*1e3);
 
 		sum_dt += dt;
 

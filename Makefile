@@ -9,7 +9,7 @@ CC      = gcc
 INCLUDE = .
 
 # Compiler flags (-O3 to optimize, -g to debug, -pg or -ftest-coverage -fprofile-arcs to profile)
-CFLAGS  = -Wall -Wextra -I${INCLUDE} -O3
+CFLAGS  = -Wall -Wextra -I${INCLUDE} -g
 
 # Libraries
 LIBS    = -lm -L/usr/lib
