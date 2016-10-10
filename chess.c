@@ -57,6 +57,12 @@ wchar_t heatmap_char(float val) {
 }
 
 
+static inline wchar_t piece_char(piece pc) {
+	wchar_t chars[NPIECES] = {L'·', L'♟', L'♟', L'♟', L'♟', L'♟', L'♟', L'♟', L'♟', L'♜', L'♞', L'♝', L'♛', L'♚', L'♝', L'♞', L'♜', L'♙', L'♙', L'♙', L'♙', L'♙', L'♙', L'♙', L'♙', L'♖', L'♘', L'♗', L'♕', L'♔', L'♗', L'♘', L'♖'};
+	return chars[pc];
+}
+
+
 
 move* move_create() {
 	move* mv;
@@ -119,17 +125,55 @@ state* state_create() {
 	st->nextPlayer = WHITE;
 	st->status = PLAYING;
 
+	piece initial_board[COUNT] = {
+		BR1,	BN1,	BB1,	BQ, 	BK, 	BB2,	BN2,	BR2,	
+		BP1,	BP2,	BP3,	BP4,	BP5,	BP6,	BP7,	BP8,	
+		EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	
+		EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	
+		EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	
+		EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	EMPTY,	
+		WP1,	WP2,	WP3,	WP4,	WP5,	WP6,	WP7,	WP8,	
+		WR1,	WN1,	WB1,	WQ, 	WK, 	WB2,	WN2,	WR2,	
+	};
+
+	for (int i = 0; i < COUNT; ++i) {	// TODO memcpy?
+		st->board[i] = initial_board[i];
+	}
+
+	char initial_pieces[NPIECES] = {
+		0xff,
+		48, 49, 50, 51, 52, 53, 54, 55, 
+		56, 57, 58, 59, 60, 61, 62, 63, 
+		8, 9, 10, 11, 12, 13, 14, 15, 
+		0, 1, 2, 3, 4, 5, 6, 7, 
+	};
+
+	for (int i = 0; i < NPIECES; ++i) {
+		st->pieces[i] = initial_pieces[i];
+	}
+
 	return st;
 }
 
 // Deep copy st0 --> st1
 void state_copy(state* st0, state* st1) {
 	st1->nextPlayer = st0->nextPlayer;
+	st1->status = st0->status;
+
+	for (int i = 0; i < COUNT; ++i) {
+		st1->board[i] = st0->board[i];
+	}
+
+	for (int i = 0; i < NPIECES; ++i) {
+		st1->pieces[i] = st0->pieces[i];
+	}
 }
 
 void state_destroy(state* st) {
 	free(st);
 }
+
+#define BOARD(y, x) board[(y)*SIZE+(x)]
 
 void state_print(state* st) {
 	color nextPlayer = st->nextPlayer;
@@ -153,6 +197,17 @@ void state_print(state* st) {
 				break;
 		}
 	}
+
+	piece* board = st->board;
+	wprintf(L"    a b c d e f g h\n\n");
+	for (int y = 0; y < SIZE; ++y) {
+		wprintf(L"%d   ", y+1);
+		for (int x = 0; x < SIZE; ++x) {
+			wprintf(L"%lc ", piece_char(BOARD(y, x)));
+		}
+		wprintf(L"   %d\n", y+1);
+	}
+	wprintf(L"\n    a b c d e f g h\n");
 }
 
 // Debug info about groups & ko

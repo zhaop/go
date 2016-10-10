@@ -22,13 +22,13 @@ typedef enum { SUCCESS, FAIL_GAME_ENDED, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_CHECK,
 typedef enum { PLAYING, STALEMATE, CHECKMATE, RESIGNED } game_status;
 
 #define NPIECES 33
-typedef enum { EMPTY, WP1, WP2, WP3, WP4, WP5, WP6, WP7, WP8, WR1, WN1, WB1, WQ, WK, WB2, WN2, WR2, BP1, BP2, BP3, BP4, BP5, BP6, BP7, BP8, BR1, BN1, BB1, BQ, BK, BB2, BN2, BR2 } piece;
+typedef enum { EMPTY = 0, WP1, WP2, WP3, WP4, WP5, WP6, WP7, WP8, WR1, WN1, WB1, WQ, WK, WB2, WN2, WR2, BP1, BP2, BP3, BP4, BP5, BP6, BP7, BP8, BR1, BN1, BB1, BQ, BK, BB2, BN2, BR2 } piece;
 
 typedef struct {
 	color nextPlayer;	// Player that has to move next, or if game_status CHECKMATE or RESIGNED, the losing player
 	game_status status;
 	piece board[COUNT];		// Array of 64 "pieces"
-	char pieces[NPIECES];	// Array of locations of all 32 pieces (actually 33, but disregard EMPTY)
+	char pieces[NPIECES];	// Array of locations of all 32 pieces (actually 33, but disregard [EMPTY] = 255)
 } state;
 
 typedef int16_t move;
