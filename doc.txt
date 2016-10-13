@@ -87,3 +87,43 @@ while can still think:
   destroy(state);
 
 
+
+Things to do to make chess:
+
+V   chess_get_reasonable_moves
+V     chess_is_move_reasonable
+V       chess_is_move_legal
+    chess_play_move: assume move pseudo-legal; make sure king not in check, make move, update status if applicable
+    chess_play_out: straightforward
+       chess_play_random_move: play any random move; pick any pseudolegal move, attempt to play it, make sure king not in check?
+
+Assume following moves are all pseudo-legal (pieces move according to their rules, may capture opponents).
+Assume my king not in check.
+  I move a non-king piece, and my king is now in check.
+    An opposing Queen, Rook or Bishop will capture him.
+    > Check horz & vert around my old location to see if my king is on one side, a {rook or queen} on the other,
+    > and check both diag around my old location to see if my king is on one side, a {bishop or queen} on the other.
+    > If my move goes out of the line, declare illegal.
+  I move my king, and my king is now in check.
+    Any opponent could capture him.
+    > If the new square were already under attack from any opponent, declare illegal.
+Assume my king is in check / is on a square being attacked.
+  I move a non-king piece, and my king is still in check.
+    > After simulating the move only on the board, check if the king is still under attack. If so, declare illegal.
+  I move my king, and my king is still in check.
+    > After simulating the move only on the board, check if the king is still under attack. If so, declare illegal.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

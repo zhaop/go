@@ -17,7 +17,7 @@ move_result human_play(player* self, state* st, move* mv) {
 		if (!move_parse(mv, mv_in)) {
 			wprintf(L"Invalid input\n");
 		} else if (!chess_is_move_legal(st, mv)) {
-			wprintf(L"Move is illegal\n");
+			wprintf(L"Move (%d) is illegal\n", *mv);
 		} else {
 			move_result result = chess_play_move(st, mv);
 
