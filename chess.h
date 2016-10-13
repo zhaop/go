@@ -37,8 +37,8 @@ typedef struct {
 	piece board[COUNT];		// Array of 64 "pieces"
 	color colorAt[COUNT];	// Array of 64 "colors"
 	char pieces[NPIECES];	// Array of locations of all 32 pieces (actually 33, but disregard [EMPTY] = 255)
-	bool canCastleWhite[2];	// True when neither white king nor rook[i] has moved (but does not verify path is clear or squares being attacked)
-	bool canCastleBlack[2];
+	bool couldCastleWhite[2];	// True when neither white king nor rook[i] has moved (but does not verify path is clear or squares being attacked)
+	bool couldCastleBlack[2];
 	bool enPassantWhite[8];	// True when white pawn moved two forward in previous step
 	bool enPassantBlack[8];
 } state;

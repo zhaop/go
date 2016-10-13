@@ -166,8 +166,8 @@ state* state_create() {
 	}
 
 	for (int i = 0; i < 2; ++i) {
-		st->canCastleWhite[i] = true;
-		st->canCastleBlack[i] = true;
+		st->couldCastleWhite[i] = true;
+		st->couldCastleBlack[i] = true;
 	}
 
 	for (int i = 0; i < 8; ++i) {
@@ -491,8 +491,9 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 	const color enemy = (friendly == WHITE) ? BLACK : WHITE;
 	piece* board = st->board;
 	color* colorAt = st->colorAt;
-	bool* canCastleWhite = st->canCastleWhite;
-	bool* canCastleBlack = st->canCastleBlack;
+	char* pieces = st->pieces;
+	bool* couldCastleWhite = st->couldCastleWhite;
+	bool* couldCastleBlack = st->couldCastleBlack;
 	bool* enPassantWhite = st->enPassantWhite;
 	bool* enPassantBlack = st->enPassantBlack;
 	
@@ -534,6 +535,9 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 		return false;
 	}
 
+	// Is set to true in switch below (if move is en-passant)
+	bool is_en_passant = false;
+
 	// Check piece rules (invalid moves immediately return false; whitelisted moves pass through)
 	switch (pc) {
 		case WP1:
@@ -546,7 +550,10 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 		case WP8:
 			if (dy == -1 && ((tx == fx && colorAt[tt] == NOBODY) || (ldx == 1 && colorAt[tt] == enemy))) break;	// One forward or capture
 			if (fy == 6 && ty == 4 && tx == fx && colorAt[tt] == NOBODY) break;	// Two forward
-			if (fy == 3 && ty == 2 && ldx == 1 && BOARD(ty+1, tx) >= BP1 && BOARD(ty+1, tx) <= BP8 && enPassantBlack[BOARD(ty+1, tx) - BP1]) break;	// En-passant capture
+			if (fy == 3 && ty == 2 && ldx == 1 && BOARD(ty+1, tx) >= BP1 && BOARD(ty+1, tx) <= BP8 && enPassantBlack[BOARD(ty+1, tx) - BP1]) {
+				is_en_passant = true;
+				break;
+			}
 			return false;
 			break;
 		case BP1:
@@ -559,7 +566,10 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 		case BP8:
 			if (dy == 1 && ((tx == fx && colorAt[tt] == NOBODY) || (ldx == 1 && colorAt[tt] == enemy))) break;	// One forward or capture
 			if (fy == 1 && ty == 3 && tx == fx && colorAt[tt] == NOBODY) break;	// Two forward
-			if (fy == 4 && ty == 5 && ldx == 1 && BOARD(ty+1, tx) >= WP1 && BOARD(ty+1, tx) <= WP8 && enPassantWhite[BOARD(ty+1, tx) - WP1]) break;	// En-passant capture
+			if (fy == 4 && ty == 5 && ldx == 1 && BOARD(ty+1, tx) >= WP1 && BOARD(ty+1, tx) <= WP8 && enPassantWhite[BOARD(ty+1, tx) - WP1]) {
+				is_en_passant = true;
+				break;
+			}
 			return false;
 			break;
 		case WR1:
@@ -665,11 +675,11 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 			break;
 		case WK:
 			if (ff == 60 && (tt == 58 || tt == 62) && !is_under_attack(60, board, friendly, enemy)) {
-				if (tt == 58 && canCastleWhite[0]												// Queen-side castle
+				if (tt == 58 && couldCastleWhite[0]												// Queen-side castle
 					 && colorAt[57] == NOBODY && colorAt[58] == NOBODY && colorAt[59] == NOBODY	// Ensure path free for king & rook
 					 && !is_under_attack(58, board, friendly, enemy)							// Don't go through check
 					 && !is_under_attack(59, board, friendly, enemy)) break;
-				if (tt == 62 && canCastleWhite[1]								// King-side castle
+				if (tt == 62 && couldCastleWhite[1]								// King-side castle
 					 && colorAt[61] == NOBODY && colorAt[62] == NOBODY			// Ensure path free for king & rook
 					 && !is_under_attack(61, board, friendly, enemy)			// Don't go through check
 					 && !is_under_attack(62, board, friendly, enemy)) break;
@@ -679,12 +689,12 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 			break;
 		case BK:
 			if (ff == 4 && (tt == 2 || tt == 6) && !is_under_attack(4, board, friendly, enemy)) {
-				if (tt == 2 && canCastleBlack[0]												// Queen-side castle
+				if (tt == 2 && couldCastleBlack[0]												// Queen-side castle
 					 && colorAt[1] == NOBODY && colorAt[2] == NOBODY && colorAt[3] == NOBODY	// Ensure path free for king & rook
 					 && !is_under_attack(1, board, friendly, enemy)								// Don't go through check
 					 && !is_under_attack(2, board, friendly, enemy)
 					 && !is_under_attack(3, board, friendly, enemy)) break;
-				if (tt == 6 && canCastleBlack[1]								// King-side castle
+				if (tt == 6 && couldCastleBlack[1]								// King-side castle
 					 && colorAt[5] == NOBODY && colorAt[6] == NOBODY			// Ensure path free for king & rook
 					 && !is_under_attack(5, board, friendly, enemy)				// Don't go through check
 					 && !is_under_attack(6, board, friendly, enemy)) break;
@@ -697,7 +707,29 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 			break;
 	}
 
-	return true;
+	// Castling has already been taken care of; must be legal by now
+	if ((pc == WK || pc == BK) && ldx == 2) {
+		return true;
+	}
+
+	// Make sure king doesn't end up in check
+	const char king_loc = (pc == WK || pc == BK) ? tt : pieces[(friendly == WHITE) ? WK : BK];
+	const piece possible_capture	= is_en_passant ? (friendly == WHITE ? BOARD(ty+1, tx) : BOARD(ty-1, tx)) : board[tt];
+	const char possible_capture_loc	= is_en_passant ? (friendly == WHITE ? SIZE*(ty+1)+tx  : SIZE*(ty-1)+tx ) : tt;
+	
+	// Simulate the move
+	board[possible_capture_loc] = EMPTY;
+	board[tt] = board[ff];
+	board[ff] = EMPTY;
+
+	const bool is_legal = !is_under_attack(king_loc, board, friendly, enemy);
+
+	// Undo the move
+	board[ff] = board[tt];
+	board[tt] = EMPTY;
+	board[possible_capture_loc] = possible_capture;
+
+	return is_legal;
 }
 
 // Never resign
