@@ -308,7 +308,7 @@ static void teresa_print_heatmap(state* st, teresa_tree* tree, teresa_node nd) {
 		child = NODE_SIBLING(child);
 	}
 
-	chess_print_heatmap(st, mvs, values, i);
+	// chess_print_heatmap(st, mvs, values, i);
 }
 
 static void teresa_destroy_all_children_except_one(teresa_tree* tree, teresa_node parent, teresa_node keep) {

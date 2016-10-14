@@ -92,7 +92,7 @@ bool move_parse(move* mv, char str[5]) {
 	return true;
 }
 
-#define MOVE_UNPACK(ff, tt, fy, fx, ty, tx) const char (ff) = mv >> 6; const char (tt) = mv & 0x3f; const char (fy) = mv >> 9; const char (fx) = (mv & (0x07 << 6)) >> 6; const char (ty) = (mv & (0x07 << 3)) >> 3; const char (tx) = mv & 0x07;
+#define MOVE_UNPACK(ff, tt, fy, fx, ty, tx) const loc (ff) = mv >> 6; const loc (tt) = mv & 0x3f; const coord (fy) = mv >> 9; const coord (fx) = (mv & (0x07 << 6)) >> 6; const coord (ty) = (mv & (0x07 << 3)) >> 3; const coord (tx) = mv & 0x07;
 
 // str must be a wchar_t[6]
 void move_sprint(wchar_t str[6], move* mv_ptr) {
@@ -151,18 +151,18 @@ state* state_create() {
 		st->colorAt[i] = initial_colorAt[i];
 	}
 
-	char initial_pieces[NPIECES] = {
-		-1,
+	loc initial_locs[NPIECES] = {
+		LOC_NULL,
 		48, 49, 50, 51, 52, 53, 54, 55,	// WP1, WP2, WP3, WP4, WP5, WP6, WP7, WP8
 		56, 57, 58, 60, 61, 62, 63, 59,	// WR1, WN1, WB1, WK, WB2, WN2, WR2, WQ1
-		-1, -1, -1, -1, 		// WQ2, WQ3, WQ4, WQ5
+		LOC_NULL, LOC_NULL, LOC_NULL, LOC_NULL, 		// WQ2, WQ3, WQ4, WQ5
 		8, 9, 10, 11, 12, 13, 14, 15, 	// BP1, BP2, BP3, BP4, BP5, BP6, BP7, BP8
 		0, 1, 2, 4, 5, 6, 7, 3, 		// BR1, BN1, BB1, BK, BB2, BN2, BR2, BQ1
-		-1, -1, -1, -1, 		// BQ2, BQ3, BQ4, BQ5
+		LOC_NULL, LOC_NULL, LOC_NULL, LOC_NULL, 		// BQ2, BQ3, BQ4, BQ5
 	};
 
 	for (int i = 0; i < NPIECES; ++i) {
-		st->pieces[i] = initial_pieces[i];
+		st->locs[i] = initial_locs[i];
 	}
 
 	for (int i = 0; i < 2; ++i) {
@@ -188,7 +188,7 @@ void state_copy(state* st0, state* st1) {
 	}
 
 	for (int i = 0; i < NPIECES; ++i) {
-		st1->pieces[i] = st0->pieces[i];
+		st1->locs[i] = st0->locs[i];
 	}
 }
 
@@ -216,63 +216,63 @@ static bool is_white_pawn(piece pc) {
 }
 
 // Lots of information redundancy in parameters, but saves having to look it up on the board
-// loc is location/index of piece
+// pp is location/index of piece
 // Note: doesn't check for en-passant captures of pawns
-static bool is_under_attack(char loc, piece* board, color friendly, color enemy) {
-	const char py = loc >> 3;
-	const char px = loc & 0x07;
+static bool is_under_attack(loc pp, piece* board, color friendly, color enemy) {
+	const coord py = pp >> 3;
+	const coord px = pp & 0x07;
 
 	if (friendly == WHITE) {
 		// Scan horz/vert for rooks & queens
 		if (py > 0) {	// Look up
-			for (char y = py - 1; y >= 0; --y) {
+			for (coord y = py - 1; y >= 0; --y) {
 				if (BOARD(y, px) == BR1 || BOARD(y, px) == BR2 || is_black_queen(BOARD(y, px))) return true;
 				if (BOARD(y, px) != EMPTY) break;
 			}
 		}
 		if (px > 0) {	// Look left
-			for (char x = px - 1; x >= 0; --x) {
+			for (coord x = px - 1; x >= 0; --x) {
 				if (BOARD(py, x) == BR1 || BOARD(py, x) == BR2 || is_black_queen(BOARD(py, x))) return true;
 				if (BOARD(py, x) != EMPTY) break;
 			}
 		}
 		if (px < 7) {	// Look right
-			for (char x = px + 1; x <= 7; ++x) {
+			for (coord x = px + 1; x <= 7; ++x) {
 				if (BOARD(py, x) == BR1 || BOARD(py, x) == BR2 || is_black_queen(BOARD(py, x))) return true;
 				if (BOARD(py, x) != EMPTY) break;
 			}
 		}
 		if (py < 7) {	// Look down
-			for (char y = py + 1; y <= 7; ++y) {
+			for (coord y = py + 1; y <= 7; ++y) {
 				if (BOARD(y, px) == BR1 || BOARD(y, px) == BR2 || is_black_queen(BOARD(y, px))) return true;
 				if (BOARD(y, px) != EMPTY) break;
 			}
 		}
 		// Scan diag for bishops & queens
-		const char dNE = min(px, py);
+		const coord dNE = min(px, py);
 		if (dNE > 0) {	// Look up-left
-			for (char i = 1; i <= dNE; ++i) {
+			for (coord i = 1; i <= dNE; ++i) {
 				if (BOARD(py-i, px-i) == BB1 || BOARD(py-i, px-i) == BB2 || is_black_queen(BOARD(py-i, px-i))) return true;
 				if (BOARD(py-i, px-i) != EMPTY) break;
 			}
 		}
-		const char dNW = min(7-px, py);
+		const coord dNW = min(7-px, py);
 		if (dNW > 0) {	// Look up-right
-			for (char i = 1; i <= dNW; ++i) {
+			for (coord i = 1; i <= dNW; ++i) {
 				if (BOARD(py-i, px+i) == BB1 || BOARD(py-i, px+i) == BB2 || is_black_queen(BOARD(py-i, px+i))) return true;
 				if (BOARD(py-i, px+i) != EMPTY) break;
 			}
 		}
-		const char dSE = min(px, 7-py);
+		const coord dSE = min(px, 7-py);
 		if (dSE > 0) {	// Look down-left
-			for (char i = 1; i <= dSE; ++i) {
+			for (coord i = 1; i <= dSE; ++i) {
 				if (BOARD(py+i, px-i) == BB1 || BOARD(py+i, px-i) == BB2 || is_black_queen(BOARD(py+i, px-i))) return true;
 				if (BOARD(py+i, px-i) != EMPTY) break;
 			}
 		}
-		const char dSW = min(7-px, 7-py);
+		const coord dSW = min(7-px, 7-py);
 		if (dSW > 0) {	// Look down-right
-			for (char i = 1; i <= dSW; ++i) {
+			for (coord i = 1; i <= dSW; ++i) {
 				if (BOARD(py+i, px+i) == BB1 || BOARD(py+i, px+i) == BB2 || is_black_queen(BOARD(py+i, px+i))) return true;
 				if (BOARD(py+i, px+i) != EMPTY) break;
 			}
@@ -320,54 +320,54 @@ static bool is_under_attack(char loc, piece* board, color friendly, color enemy)
 
 		// Scan horz/vert for rooks & queens
 		if (py > 0) {	// Look up
-			for (char y = py - 1; y >= 0; --y) {
+			for (coord y = py - 1; y >= 0; --y) {
 				if (BOARD(y, px) == WR1 || BOARD(y, px) == WR2 || is_white_queen(BOARD(y, px))) return true;
 				if (BOARD(y, px) != EMPTY) break;
 			}
 		}
 		if (px > 0) {	// Look left
-			for (char x = px - 1; x >= 0; --x) {
+			for (coord x = px - 1; x >= 0; --x) {
 				if (BOARD(py, x) == WR1 || BOARD(py, x) == WR2 || is_white_queen(BOARD(py, x))) return true;
 				if (BOARD(py, x) != EMPTY) break;
 			}
 		}
 		if (px < 7) {	// Look right
-			for (char x = px + 1; x <= 7; ++x) {
+			for (coord x = px + 1; x <= 7; ++x) {
 				if (BOARD(py, x) == WR1 || BOARD(py, x) == WR2 || is_white_queen(BOARD(py, x))) return true;
 				if (BOARD(py, x) != EMPTY) break;
 			}
 		}
 		if (py < 7) {	// Look down
-			for (char y = py + 1; y <= 7; ++y) {
+			for (coord y = py + 1; y <= 7; ++y) {
 				if (BOARD(y, px) == WR1 || BOARD(y, px) == WR2 || is_white_queen(BOARD(y, px))) return true;
 				if (BOARD(y, px) != EMPTY) break;
 			}
 		}
 		// Scan diag for bishops & queens
-		const char dNE = min(px, py);
+		const coord dNE = min(px, py);
 		if (dNE > 0) {	// Look up-left
-			for (char i = 1; i <= dNE; ++i) {
+			for (coord i = 1; i <= dNE; ++i) {
 				if (BOARD(py-i, px-i) == WB1 || BOARD(py-i, px-i) == WB2 || is_white_queen(BOARD(py-i, px-i))) return true;
 				if (BOARD(py-i, px-i) != EMPTY) break;
 			}
 		}
-		const char dNW = min(7-px, py);
+		const coord dNW = min(7-px, py);
 		if (dNW > 0) {	// Look up-right
-			for (char i = 1; i <= dNW; ++i) {
+			for (coord i = 1; i <= dNW; ++i) {
 				if (BOARD(py-i, px+i) == WB1 || BOARD(py-i, px+i) == WB2 || is_white_queen(BOARD(py-i, px+i))) return true;
 				if (BOARD(py-i, px+i) != EMPTY) break;
 			}
 		}
-		const char dSE = min(px, 7-py);
+		const coord dSE = min(px, 7-py);
 		if (dSE > 0) {	// Look down-left
-			for (char i = 1; i <= dSE; ++i) {
+			for (coord i = 1; i <= dSE; ++i) {
 				if (BOARD(py+i, px-i) == WB1 || BOARD(py+i, px-i) == WB2 || is_white_queen(BOARD(py+i, px-i))) return true;
 				if (BOARD(py+i, px-i) != EMPTY) break;
 			}
 		}
-		const char dSW = min(7-px, 7-py);
+		const coord dSW = min(7-px, 7-py);
 		if (dSW > 0) {	// Look down-right
-			for (char i = 1; i <= dSW; ++i) {
+			for (coord i = 1; i <= dSW; ++i) {
 				if (BOARD(py+i, px+i) == WB1 || BOARD(py+i, px+i) == WB2 || is_white_queen(BOARD(py+i, px+i))) return true;
 				if (BOARD(py+i, px+i) != EMPTY) break;
 			}
@@ -422,7 +422,7 @@ void state_print(state* st) {
 
 	piece* board = st->board;
 	wprintf(L"Squares under attack:\n");
-	char testlocs[64];
+	loc testlocs[64];
 	double testboard[64];
 	for (int i = 0; i < 64; ++i) {
 		testlocs[i] = i;
@@ -447,9 +447,9 @@ void state_print(state* st) {
 	}
 	
 	bool state_consistent = true;
-	char* pieces = st->pieces;
+	loc* locs = st->locs;
 	for (int i = 0; i < NPIECES; ++i) {
-		if (pieces[i] != -1 && board[pieces[i]] != i) {
+		if (locs[i] != LOC_NULL && board[locs[i]] != i) {
 			state_consistent = false;
 			break;
 		}
@@ -457,8 +457,8 @@ void state_print(state* st) {
 	if (!state_consistent) {
 		wprintf(L"Inconsistent state\n");
 		for (int i = 0; i < NPIECES; ++i) {
-			if (pieces[i] != -1 && board[pieces[i]] != i) {
-				wprintf(L"Expected %lc  @ %c%c, got %lc\n", piece_char(i), 'a'+(pieces[i]&0x07), '1'+(pieces[i]>>3), piece_char(board[pieces[i]]));
+			if (locs[i] != LOC_NULL && board[locs[i]] != i) {
+				wprintf(L"Expected %lc  @ %c%c, got %lc\n", piece_char(i), 'a'+(locs[i]&0x07), '1'+(locs[i]>>3), piece_char(board[locs[i]]));
 			}
 		}
 	}
@@ -487,7 +487,7 @@ void state_print(state* st) {
 			if (BOARD(y, x) == EMPTY) {
 				wprintf(L"%ls ", ((x + y) % 2 == 0) ? L"· " : L"∙ ");	// •·⋅∙
 			} else {
-				wprintf(L"%lc%c ", piece_char(BOARD(y, x)), (pieces[BOARD(y, x)] == SIZE*y+x) ? ' ' : '*');
+				wprintf(L"%lc%c ", piece_char(BOARD(y, x)), (locs[BOARD(y, x)] == SIZE*y+x) ? ' ' : '*');
 			}
 		}
 		wprintf(L"  %d\n", y+1);
@@ -528,7 +528,7 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 	const color enemy = (friendly == WHITE) ? BLACK : WHITE;
 	piece* board = st->board;
 	color* colorAt = st->colorAt;
-	char* pieces = st->pieces;
+	loc* locs = st->locs;
 	bool* couldCastleWhite = st->couldCastleWhite;
 	bool* couldCastleBlack = st->couldCastleBlack;
 	bool* enPassantWhite = st->enPassantWhite;
@@ -548,10 +548,10 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 	}
 
 	MOVE_UNPACK(ff, tt, fy, fx, ty, tx);
-	const signed char dx = tx - fx;
-	const signed char dy = ty - fy;
-	const char ldx = abs(tx - fx);
-	const char ldy = abs(ty - fy);
+	const int8_t dx = tx - fx;
+	const int8_t dy = ty - fy;
+	const coord ldx = abs(tx - fx);
+	const coord ldy = abs(ty - fy);
 
 	if (ff == tt) {
 		wprintf(L"not moving\n");
@@ -615,18 +615,18 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 		case BR2:
 			if (dy == 0) {	// Horizontal
 				if (dx < 0) {	// Left
-					for (char x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return false;
+					for (coord x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return false;
 					break;
 				} else {	// Right (dx > 0); the (dx == 0) case is handled earlier with "no movement"
-					for (char x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return false;
+					for (coord x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return false;
 					break;
 				}
 			} else if (dx == 0) {	// Vertical
 				if (dy < 0) {	// Up
-					for (char y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return false;
+					for (coord y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return false;
 					break;
 				} else {	// Down (dy > 0); the (dy == 0) case is handled earlier with "no movement"
-					for (char y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return false;
+					for (coord y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return false;
 					break;
 				}
 			}
@@ -646,18 +646,18 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 			if (ldx != ldy) return false;	// Blacklist non-diag movement
 			if (dy < 0) {
 				if (dx < 0) {	// Up-left
-					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return false;
+					for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return false;
 					break;
 				} else {		// Up-right (dx > 0); (dx == 0) ruled out earlier
-					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return false;
+					for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return false;
 					break;
 				}
 			} else {	// (dy > 0); (dy == 0) ruled out earlier
 				if (dx < 0) {	// Down-left
-					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return false;
+					for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return false;
 					break;
 				} else {		// Down-right (dx > 0); (dx == 0) ruled out earlier
-					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return false;
+					for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return false;
 					break;
 				}
 			}
@@ -675,35 +675,35 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 		case BQ5:
 			if (dy < 0) {
 				if (dx == 0) {	// Up
-					for (char y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return false;
+					for (coord y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return false;
 					break;
 				} else if (ldx == ldy) {
 					if (dx < 0) {	// Up-left
-						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return false;
+						for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return false;
 						break;
 					} else {		// Up-right (dx > 0)
-						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return false;
+						for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return false;
 						break;
 					}
 				}
 			} else if (dy == 0) {
 				if (dx < 0) {	// Left
-					for (char x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return false;
+					for (coord x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return false;
 					break;
 				} else {	// Right (dx > 0); the (dx == 0) case is handled earlier with "no movement"
-					for (char x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return false;
+					for (coord x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return false;
 					break;
 				}
 			} else {
 				if (dx == 0) {	// Down
-					for (char y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return false;
+					for (coord y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return false;
 					break;
 				} else if (ldx == ldy) {
 					if (dx < 0) {	// Down-left
-						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return false;
+						for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return false;
 						break;
 					} else {		// Down-right (dx > 0)
-						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return false;
+						for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return false;
 						break;
 					}
 				}
@@ -750,9 +750,9 @@ bool chess_is_move_legal(state* st, move* mv_ptr) {
 	}
 
 	// Make sure king doesn't end up in check
-	const char king_loc = (pc == WK || pc == BK) ? tt : pieces[(friendly == WHITE) ? WK : BK];
+	const loc king_loc = (pc == WK || pc == BK) ? tt : locs[(friendly == WHITE) ? WK : BK];
 	const piece possible_capture	= is_en_passant ? (friendly == WHITE ? BOARD(ty+1, tx) : BOARD(ty-1, tx)) : board[tt];
-	const char possible_capture_loc	= is_en_passant ? (friendly == WHITE ? SIZE*(ty+1)+tx  : SIZE*(ty-1)+tx ) : tt;
+	const loc possible_capture_loc	= is_en_passant ? (friendly == WHITE ? SIZE*(ty+1)+tx  : SIZE*(ty-1)+tx ) : tt;
 	
 	// Simulate the move
 	board[possible_capture_loc] = EMPTY;
@@ -834,7 +834,7 @@ move_result chess_play_move(state* st, move* mv_ptr) {
 	const color enemy = (friendly == WHITE) ? BLACK : WHITE;
 	piece* board = st->board;
 	color* colorAt = st->colorAt;
-	char* pieces = st->pieces;
+	loc* locs = st->locs;
 	bool* couldCastleWhite = st->couldCastleWhite;
 	bool* couldCastleBlack = st->couldCastleBlack;
 	bool* enPassantWhite = st->enPassantWhite;
@@ -863,10 +863,10 @@ move_result chess_play_move(state* st, move* mv_ptr) {
 	}
 
 	MOVE_UNPACK(ff, tt, fy, fx, ty, tx);
-	const signed char dx = tx - fx;
-	const signed char dy = ty - fy;
-	const char ldx = abs(tx - fx);
-	const char ldy = abs(ty - fy);
+	const int8_t dx = tx - fx;
+	const int8_t dy = ty - fy;
+	const coord ldx = abs(tx - fx);
+	const coord ldy = abs(ty - fy);
 
 	if (ff == tt) {
 		// wprintf(L"not moving\n");
@@ -930,18 +930,18 @@ move_result chess_play_move(state* st, move* mv_ptr) {
 		case BR2:
 			if (dy == 0) {	// Horizontal
 				if (dx < 0) {	// Left
-					for (char x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
+					for (coord x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				} else {	// Right (dx > 0); the (dx == 0) case is handled earlier with "no movement"
-					for (char x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
+					for (coord x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				}
 			} else if (dx == 0) {	// Vertical
 				if (dy < 0) {	// Up
-					for (char y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
+					for (coord y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				} else {	// Down (dy > 0); the (dy == 0) case is handled earlier with "no movement"
-					for (char y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
+					for (coord y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				}
 			}
@@ -961,18 +961,18 @@ move_result chess_play_move(state* st, move* mv_ptr) {
 			if (ldx != ldy) return FAIL_ILLEGAL;	// Blacklist non-diag movement
 			if (dy < 0) {
 				if (dx < 0) {	// Up-left
-					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return FAIL_ILLEGAL;
+					for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				} else {		// Up-right (dx > 0); (dx == 0) ruled out earlier
-					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return FAIL_ILLEGAL;
+					for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				}
 			} else {	// (dy > 0); (dy == 0) ruled out earlier
 				if (dx < 0) {	// Down-left
-					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return FAIL_ILLEGAL;
+					for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				} else {		// Down-right (dx > 0); (dx == 0) ruled out earlier
-					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return FAIL_ILLEGAL;
+					for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				}
 			}
@@ -990,35 +990,35 @@ move_result chess_play_move(state* st, move* mv_ptr) {
 		case BQ5:
 			if (dy < 0) {
 				if (dx == 0) {	// Up
-					for (char y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
+					for (coord y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				} else if (ldx == ldy) {
 					if (dx < 0) {	// Up-left
-						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return FAIL_ILLEGAL;
+						for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return FAIL_ILLEGAL;
 						break;
 					} else {		// Up-right (dx > 0)
-						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return FAIL_ILLEGAL;
+						for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return FAIL_ILLEGAL;
 						break;
 					}
 				}
 			} else if (dy == 0) {
 				if (dx < 0) {	// Left
-					for (char x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
+					for (coord x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				} else {	// Right (dx > 0); the (dx == 0) case is handled earlier with "no movement"
-					for (char x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
+					for (coord x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				}
 			} else {
 				if (dx == 0) {	// Down
-					for (char y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
+					for (coord y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
 					break;
 				} else if (ldx == ldy) {
 					if (dx < 0) {	// Down-left
-						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return FAIL_ILLEGAL;
+						for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return FAIL_ILLEGAL;
 						break;
 					} else {		// Down-right (dx > 0)
-						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return FAIL_ILLEGAL;
+						for (coord i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return FAIL_ILLEGAL;
 						break;
 					}
 				}
@@ -1061,7 +1061,7 @@ move_result chess_play_move(state* st, move* mv_ptr) {
 
 	// Castling has already been taken care of; must be legal by now
 	if ((pc == WK || pc == BK) && ldx == 2) {
-		char rook_ff, rook_tt;
+		loc rook_ff, rook_tt;
 		switch (tt) {
 			case 2:		// Black queen-side
 				rook_ff = 0;
@@ -1094,10 +1094,10 @@ move_result chess_play_move(state* st, move* mv_ptr) {
 		colorAt[rook_tt] = colorAt[rook_ff];
 		colorAt[rook_ff] = NOBODY;
 		colorAt[tt] = colorAt[ff];
-		colorAt[ff] = EMPTY;
+		colorAt[ff] = NOBODY;
 		
-		pieces[board[tt]] = tt;
-		pieces[board[rook_tt]] = rook_tt;
+		locs[board[tt]] = tt;
+		locs[board[rook_tt]] = rook_tt;
 		
 		if (pc == WK) {
 			for (int i = 0; i < 2; ++i) couldCastleWhite[i] = false;
@@ -1111,9 +1111,9 @@ move_result chess_play_move(state* st, move* mv_ptr) {
 	}
 
 	// Make sure king doesn't end up in check
-	const char king_loc = (pc == WK || pc == BK) ? tt : pieces[(friendly == WHITE) ? WK : BK];
+	const loc king_loc = (pc == WK || pc == BK) ? tt : locs[(friendly == WHITE) ? WK : BK];
 	const piece possible_capture	= is_en_passant ? (friendly == WHITE ? BOARD(ty+1, tx) : BOARD(ty-1, tx)) : board[tt];
-	const char possible_capture_loc	= is_en_passant ? (friendly == WHITE ? SIZE*(ty+1)+tx  : SIZE*(ty-1)+tx ) : tt;
+	const loc possible_capture_loc	= is_en_passant ? (friendly == WHITE ? SIZE*(ty+1)+tx  : SIZE*(ty-1)+tx ) : tt;
 	
 	// Simulate the move
 	board[possible_capture_loc] = EMPTY;
@@ -1126,21 +1126,21 @@ move_result chess_play_move(state* st, move* mv_ptr) {
 		// Pawn promotions (if there are enough queens)
 		piece new_queen = EMPTY;
 		if (is_white_pawn(pc) && ty == 0) {
-			new_queen = (pieces[WQ5] == -1 ? WQ5 : pieces[WQ4] == -1 ? WQ4 : pieces[WQ3] == -1 ? WQ3 : pieces[WQ2] == -1 ? WQ2 : pieces[WQ1] == -1 ? WQ1 : EMPTY);
+			new_queen = (locs[WQ5] == LOC_NULL ? WQ5 : locs[WQ4] == LOC_NULL ? WQ4 : locs[WQ3] == LOC_NULL ? WQ3 : locs[WQ2] == LOC_NULL ? WQ2 : locs[WQ1] == LOC_NULL ? WQ1 : EMPTY);
 		} else if (is_black_pawn(pc) && ty == 7) {
-			new_queen = (pieces[BQ5] == -1 ? BQ5 : pieces[BQ4] == -1 ? BQ4 : pieces[BQ3] == -1 ? BQ3 : pieces[BQ2] == -1 ? BQ2 : pieces[BQ1] == -1 ? BQ1 : EMPTY);
+			new_queen = (locs[BQ5] == LOC_NULL ? BQ5 : locs[BQ4] == LOC_NULL ? BQ4 : locs[BQ3] == LOC_NULL ? BQ3 : locs[BQ2] == LOC_NULL ? BQ2 : locs[BQ1] == LOC_NULL ? BQ1 : EMPTY);
 		}
 		if (new_queen != EMPTY) {
 			board[tt] = new_queen;
-			pieces[pc] = -1;
+			locs[pc] = LOC_NULL;
 		}
 
 		colorAt[possible_capture_loc] = NOBODY;
 		colorAt[tt] = colorAt[ff];
 		colorAt[ff] = NOBODY;
 
-		pieces[board[tt]] = tt;
-		if (possible_capture != EMPTY) pieces[possible_capture] = -1;
+		locs[board[tt]] = tt;
+		if (possible_capture != EMPTY) locs[possible_capture] = LOC_NULL;
 
 		if (friendly == WHITE) {
 			if (couldCastleWhite[0] && (pc == WK || pc == WR1)) couldCastleWhite[0] = false;
@@ -1215,7 +1215,7 @@ void chess_play_out(state* st, playout_result* result) {
 }
 
 
-void chess_print_heatmap(state* st, char* locations, double* values, int num_values) {
+void chess_print_heatmap(state* st, loc* locations, double* values, int num_values) {
 	piece* board = st->board;
 
 	double valboard[COUNT];

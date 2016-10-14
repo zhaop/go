@@ -31,12 +31,17 @@ typedef enum {
 #define PIECE_BLACK_MIN BP1
 #define PIECE_BLACK_MAX BQ9
 
+typedef uint8_t loc;
+typedef uint8_t coord;
+
+#define LOC_NULL 0xff
+
 typedef struct {
 	game_status status;
 	color nextPlayer;	// Player that has to move next, or if game_status CHECKMATE or RESIGNED, the losing player
 	piece board[COUNT];		// Array of 64 "pieces"
 	color colorAt[COUNT];	// Array of 64 "colors"
-	char pieces[NPIECES];	// Array of locations of all 32 pieces (actually 33, but disregard [EMPTY] = 255)
+	loc locs[NPIECES];	// Array of locations of all 32 pieces (actually 33, but disregard [EMPTY] = 255)
 	bool couldCastleWhite[2];	// True when neither white king nor rook[i] has moved (but does not verify path is clear or squares being attacked)
 	bool couldCastleBlack[2];
 	bool enPassantWhite[8];	// True when white pawn moved two forward in previous step
@@ -96,7 +101,7 @@ move_result chess_play_random_move(state*, move*, move*);
 void chess_play_out(state*, playout_result*);
 
 
-void chess_print_heatmap(state*, char*, double*, int);
+void chess_print_heatmap(state*, loc*, double*, int);
 
 void chess_print_move_result(move_result);
 

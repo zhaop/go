@@ -63,7 +63,8 @@ move_result karl_play(player* self, state* st, move* mv) {
 	}
 
 	wprintf(L"\nDecision heatmap\n");
-	chess_print_heatmap(st, reasonable_moves, pwin, num_moves);
+	wprintf(L"(Temporarily not available for chess)\n");
+	// chess_print_heatmap(st, reasonable_moves, pwin, num_moves);
 
 	wprintf(L"Going with ");
 	move_print(&best_pwin_move);
