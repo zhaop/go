@@ -27,12 +27,13 @@ typedef enum {
 	WP1, WP2, WP3, WP4, WP5, WP6, WP7, WP8, WR1, WN1, WB1, WK, WB2, WN2, WR2, WQ1, WQ2, WQ3, WQ4, WQ5, 
 	BP1, BP2, BP3, BP4, BP5, BP6, BP7, BP8, BR1, BN1, BB1, BK, BB2, BN2, BR2, BQ1, BQ2, BQ3, BQ4, BQ5, } piece;
 #define PIECE_WHITE_MIN WP1
-#define PIECE_WHITE_MAX WQ9
+#define PIECE_WHITE_MAX WQ5
 #define PIECE_BLACK_MIN BP1
-#define PIECE_BLACK_MAX BQ9
+#define PIECE_BLACK_MAX BQ5
 
 typedef uint8_t loc;
 typedef uint8_t coord;
+typedef int16_t move;
 
 #define LOC_NULL 0xff
 
@@ -49,8 +50,6 @@ typedef struct {
 	move nextMoves[NMOVES];
 	uint8_t numNext;
 } state;
-
-typedef int16_t move;
 
 typedef struct {
 	color winner;

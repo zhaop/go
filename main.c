@@ -2,6 +2,7 @@
 #include <wchar.h>
 #include "chess.h"
 #include "players/human.h"
+#include "players/randy.h"
 #include "players/teresa.h"
 #include "utils.h"
 
@@ -17,6 +18,9 @@ int main() {
 	player human = {"You", &human_play, NULL, NULL};
 	player human2 = {"You 2", &human_play, NULL, NULL};
 
+	player randy = {"Randy", &randy_play, NULL, NULL};
+	player randy2 = {"Randy 2", &randy_play, NULL, NULL};
+
 	// karl_params karlp = {80000};
 	// player karl = {"Karl", &karl_play, NULL, &karlp};
 
@@ -31,8 +35,8 @@ int main() {
 	// teresa_old_node** r2 = &(teresa2p.old_root);
 
 	player* players[3];
-	players[WHITE] = &human;
-	players[BLACK] = &human2;
+	players[WHITE] = &randy;
+	players[BLACK] = &randy2;
 
 	long double sum_dt = 0;
 
