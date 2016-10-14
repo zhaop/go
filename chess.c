@@ -175,21 +175,41 @@ state* state_create() {
 		st->enPassantBlack[i] = false;
 	}
 
+	// No need to init nextMoves because numNext is 0
+	numNext = 0;
+
 	return st;
 }
 
 // Deep copy st0 --> st1
 void state_copy(state* st0, state* st1) {
-	st1->nextPlayer = st0->nextPlayer;
 	st1->status = st0->status;
+	st1->nextPlayer = st0->nextPlayer;
 
 	for (int i = 0; i < COUNT; ++i) {
 		st1->board[i] = st0->board[i];
+		st1->colorAt[i] = st0->colorAt[i];
 	}
 
 	for (int i = 0; i < NPIECES; ++i) {
 		st1->locs[i] = st0->locs[i];
 	}
+
+	for (int i = 0; i < 2; ++i) {
+		st1->couldCastleWhite[i] = st0->couldCastleWhite[i];
+		st1->couldCastleBlack[i] = st0->couldCastleBlack[i];
+	}
+
+	for (int i = 0; i < 8; ++i) {
+		st1->enPassantWhite[i] = st0->enPassantWhite[i];
+		st1->enPassantBlack[i] = st0->enPassantBlack[i];
+	}
+
+	for (int i = 0; i < NMOVES; ++i) {
+		st1->nextMoves[i] = st0->nextMoves[i];
+	}
+
+	st1->numNext = st0->numNext;
 }
 
 void state_destroy(state* st) {

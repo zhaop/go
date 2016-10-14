@@ -8,7 +8,7 @@
 #define SIZE 8
 #define COUNT (SIZE*SIZE)
 
-// 4*8 pawns + 14*2 rooks + 8*2 knights + 13*2 bishops + 27*1 queen + 10*1 king + 1 castle + 1 resignation (didn't add 27*8 pawn-queens)
+// 4*8 pawns + 14*2 rooks + 8*2 knights + 13*2 bishops + 27*1 queen + 10*1 king + 1 castle + 1 resignation (didn't add 27*4 pawn-queens)
 #define NMOVES 141
 
 #define MOVE_MAX (COUNT*COUNT)
@@ -46,6 +46,8 @@ typedef struct {
 	bool couldCastleBlack[2];
 	bool enPassantWhite[8];	// True when white pawn moved two forward in previous step
 	bool enPassantBlack[8];
+	move nextMoves[NMOVES];
+	uint8_t numNext;
 } state;
 
 typedef int16_t move;
