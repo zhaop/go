@@ -803,49 +803,44 @@ bool chess_is_move_reasonable(state* st, move* mv_ptr) {
 // Param move_list must be move[COUNT+1]
 // Returns number of legally playable moves
 int chess_get_legal_moves(state* st, move* move_list) {
-	int num = 0;
-
-	if (chess_is_game_over(st)) {
-		return 0;
-	}
-
+	int num = chess_get_reasonable_moves(st, move_list);
 	move_list[num++] = MOVE_RESIGN;
-
-	move mv;
-	// TODO move_list[num++] = ...
 	return num;
 }
 
 // Like chess_get_legal_moves, but without resignations
 int chess_get_reasonable_moves(state* st, move* move_list) {
-	int num = 0;
 
-	if (chess_is_game_over(st)) {
-		return 0;
+	for (int i = 0; i < st->numNext; ++i) {
+		move_list[i] = st->nextMoves[i];
 	}
 
-	move mv;
-	// Allow only non-losing passes
-	if (chess_is_move_reasonable(st, &mv)) {
-		move_list[num] = mv;
-		++num;
-	}
+	// if (chess_is_game_over(st)) {
+	// 	return 0;
+	// }
 
-	for (int i = 0; i < COUNT; ++i) {
-		mv = i;
-		if (chess_is_move_reasonable(st, &mv)) {
-			move_list[num] = mv;
-			++num;
-		}
-	}
+	// move mv;
+	// // Allow only non-losing passes
+	// if (chess_is_move_reasonable(st, &mv)) {
+	// 	move_list[num] = mv;
+	// 	++num;
+	// }
 
-	// Or resign when nowhere to play
-	if (!num) {
-		move_list[num] = MOVE_RESIGN;
-		++num;
-	}
+	// for (int i = 0; i < COUNT; ++i) {
+	// 	mv = i;
+	// 	if (chess_is_move_reasonable(st, &mv)) {
+	// 		move_list[num] = mv;
+	// 		++num;
+	// 	}
+	// }
 
-	return num;
+	// // Or resign when nowhere to play
+	// if (!num) {
+	// 	move_list[num] = MOVE_RESIGN;
+	// 	++num;
+	// }
+
+	return st->numNext;
 }
 
 move_result chess_play_move(state* st, move* mv_ptr) {
