@@ -58,7 +58,7 @@ wchar_t heatmap_char(float val) {
 
 
 static inline wchar_t piece_char(piece pc) {
-	wchar_t chars[NPIECES] = {L'·', L'♟', L'♟', L'♟', L'♟', L'♟', L'♟', L'♟', L'♟', L'♜', L'♞', L'♝', L'♚', L'♝', L'♞', L'♜', L'♛', L'♛', L'♛', L'♛', L'♛', L'♙', L'♙', L'♙', L'♙', L'♙', L'♙', L'♙', L'♙', L'♖', L'♘', L'♗', L'♔', L'♗', L'♘', L'♖', L'♕', L'♕', L'♕', L'♕', L'♕'};
+	wchar_t chars[NPIECES] = {L'!', L'♟', L'♟', L'♟', L'♟', L'♟', L'♟', L'♟', L'♟', L'♜', L'♞', L'♝', L'♚', L'♝', L'♞', L'♜', L'♛', L'♛', L'♛', L'♛', L'♛', L'♙', L'♙', L'♙', L'♙', L'♙', L'♙', L'♙', L'♙', L'♖', L'♘', L'♗', L'♔', L'♗', L'♘', L'♖', L'♕', L'♕', L'♕', L'♕', L'♕'};
 	return chars[pc];
 }
 
@@ -152,13 +152,13 @@ state* state_create() {
 	}
 
 	char initial_pieces[NPIECES] = {
-		0xff,
+		-1,
 		48, 49, 50, 51, 52, 53, 54, 55,	// WP1, WP2, WP3, WP4, WP5, WP6, WP7, WP8
 		56, 57, 58, 60, 61, 62, 63, 59,	// WR1, WN1, WB1, WK, WB2, WN2, WR2, WQ1
-		0xff, 0xff, 0xff, 0xff, 		// WQ2, WQ3, WQ4, WQ5
+		-1, -1, -1, -1, 		// WQ2, WQ3, WQ4, WQ5
 		8, 9, 10, 11, 12, 13, 14, 15, 	// BP1, BP2, BP3, BP4, BP5, BP6, BP7, BP8
 		0, 1, 2, 4, 5, 6, 7, 3, 		// BR1, BN1, BB1, BK, BB2, BN2, BR2, BQ1
-		0xff, 0xff, 0xff, 0xff, 		// BQ2, BQ3, BQ4, BQ5
+		-1, -1, -1, -1, 		// BQ2, BQ3, BQ4, BQ5
 	};
 
 	for (int i = 0; i < NPIECES; ++i) {
@@ -420,7 +420,49 @@ void state_print(state* st) {
 	color enemy = (st->nextPlayer == BLACK) ? WHITE : BLACK;
 	game_status status = st->status;
 
-	wprintf(L"%s plays\n", (nextPlayer == WHITE) ? L"White" : L"Black");
+	piece* board = st->board;
+	wprintf(L"Squares under attack:\n");
+	char testlocs[64];
+	double testboard[64];
+	for (int i = 0; i < 64; ++i) {
+		testlocs[i] = i;
+		testboard[i] = is_under_attack(i, board, nextPlayer, enemy) ? 1.0 : 0.0;
+	}
+	chess_print_heatmap(st, testlocs, testboard, 64);
+
+	bool* couldCastleWhite = st->couldCastleWhite;
+	bool* couldCastleBlack = st->couldCastleBlack;
+	if (couldCastleWhite[0] || couldCastleWhite[1] || couldCastleBlack[0] || couldCastleBlack[1]) {
+		wprintf(L"Castling:  W --%c---%c-  B --%c---%c-\n", st->couldCastleWhite[0] ? 'Q' : '-', st->couldCastleWhite[1] ? 'K' : '-', st->couldCastleBlack[0] ? 'Q' : '-', st->couldCastleBlack[1] ? 'K' : '-');
+	}
+
+	bool* enPassantWhite = st->enPassantWhite;
+	bool* enPassantBlack = st->enPassantBlack;
+	if (enPassantWhite[0] || enPassantWhite[1] || enPassantWhite[2] || enPassantWhite[3] || enPassantWhite[4] || enPassantWhite[5] || enPassantWhite[6] || enPassantWhite[7] || enPassantBlack[0] || enPassantBlack[1] || enPassantBlack[2] || enPassantBlack[3] || enPassantBlack[4] || enPassantBlack[5] || enPassantBlack[6] || enPassantBlack[7]) {
+		wprintf(L"En pass.:  W ");
+		for (int i = 0; i < 8; ++i) wprintf(L"%c", st->enPassantWhite[i] ? i+'1' : '-');
+		wprintf(L"  B ");
+		for (int i = 0; i < 8; ++i) wprintf(L"%c", st->enPassantBlack[i] ? i+'1' : '-');
+		wprintf(L"\n");
+	}
+	
+	bool state_consistent = true;
+	char* pieces = st->pieces;
+	for (int i = 0; i < NPIECES; ++i) {
+		if (pieces[i] != -1 && board[pieces[i]] != i) {
+			state_consistent = false;
+			break;
+		}
+	}
+	if (!state_consistent) {
+		wprintf(L"Inconsistent state\n");
+		for (int i = 0; i < NPIECES; ++i) {
+			if (pieces[i] != -1 && board[pieces[i]] != i) {
+				wprintf(L"Expected %lc  @ %c%c, got %lc\n", piece_char(i), 'a'+(pieces[i]&0x07), '1'+(pieces[i]>>3), piece_char(board[pieces[i]]));
+			}
+		}
+	}
+
 	if (status != PLAYING) {
 		wprintf(L"Game is over: ");
 		switch (status) {
@@ -438,25 +480,20 @@ void state_print(state* st) {
 		}
 	}
 
-	piece* board = st->board;
-	wprintf(L"    a  b  c  d  e  f  g  h\n\n");
+	wprintf(L"\n    a  b  c  d  e  f  g  h\n\n");
 	for (int y = 0; y < SIZE; ++y) {
 		wprintf(L"%d   ", y+1);
 		for (int x = 0; x < SIZE; ++x) {
-			wprintf(L"%lc  ", piece_char(BOARD(y, x)));
+			if (BOARD(y, x) == EMPTY) {
+				wprintf(L"%ls ", ((x + y) % 2 == 0) ? L"· " : L"∙ ");	// •·⋅∙
+			} else {
+				wprintf(L"%lc%c ", piece_char(BOARD(y, x)), (pieces[BOARD(y, x)] == SIZE*y+x) ? ' ' : '*');
+			}
 		}
 		wprintf(L"  %d\n", y+1);
 	}
-	wprintf(L"\n    a  b  c  d  e  f  g  h\n");
+	wprintf(L"\n    a  b  c  d  e  f  g  h\n\n");
 
-	wprintf(L"Squares under attack:\n");
-	char testlocs[64];
-	double testboard[64];
-	for (int i = 0; i < 64; ++i) {
-		testlocs[i] = i;
-		testboard[i] = is_under_attack(i, board, nextPlayer, enemy) ? 1.0 : 0.0;
-	}
-	chess_print_heatmap(st, testlocs, testboard, 64);
 }
 
 // Debug info about groups & ko
@@ -792,22 +829,340 @@ int chess_get_reasonable_moves(state* st, move* move_list) {
 }
 
 move_result chess_play_move(state* st, move* mv_ptr) {
-	move mv = *mv_ptr;
-	color friendly = st->nextPlayer;
-	color enemy = (friendly == BLACK) ? WHITE : BLACK;
+	const move mv = *mv_ptr;
+	const color friendly = st->nextPlayer;
+	const color enemy = (friendly == WHITE) ? BLACK : WHITE;
+	piece* board = st->board;
+	color* colorAt = st->colorAt;
+	char* pieces = st->pieces;
+	bool* couldCastleWhite = st->couldCastleWhite;
+	bool* couldCastleBlack = st->couldCastleBlack;
+	bool* enPassantWhite = st->enPassantWhite;
+	bool* enPassantBlack = st->enPassantBlack;
+	
+	if (chess_is_game_over(st)) {
+		return FAIL_GAME_ENDED;
+	}
 
 	if (mv == MOVE_RESIGN) {
-		st->nextPlayer = enemy;
+		st->status = RESIGNED;
+		for (int i = 0; i < 2; ++i) {
+			st->couldCastleWhite[i] = false;
+			st->couldCastleBlack[i] = false;
+		}
+		for (int i = 0; i < 8; ++i) {
+			st->enPassantWhite[i] = false;
+			st->enPassantBlack[i] = false;
+		}
 		return SUCCESS;
 	}
 
-	if (mv < 0 || mv >= MOVE_MAX) {
+	if (mv < 0 || mv > MOVE_MAX) {
+		wprintf(L"out of bounds\n");
 		return FAIL_BOUNDS;
 	}
 
-	st->nextPlayer = enemy;
+	MOVE_UNPACK(ff, tt, fy, fx, ty, tx);
+	const signed char dx = tx - fx;
+	const signed char dy = ty - fy;
+	const char ldx = abs(tx - fx);
+	const char ldy = abs(ty - fy);
 
-	return SUCCESS;
+	if (ff == tt) {
+		// wprintf(L"not moving\n");
+		return FAIL_OCCUPIED;
+	}
+
+	piece pc = BOARD(fy, fx);
+
+	// Do not play anything that's not own color (including "NOBODY" = empty squares)
+	if (colorAt[ff] != friendly) {
+		// wprintf(L"not own color: colorAt[%d] = %d != %d\n", ff, colorAt[ff], friendly);
+		return FAIL_ILLEGAL;
+	}
+
+	// Do not trample own piece
+	if (colorAt[tt] == friendly) {
+		wprintf(L"trampling own color: colorAt[%d] = %d\n", tt, colorAt[tt]);
+		return FAIL_OCCUPIED;
+	}
+
+	// Is set to true in switch below (if move is en-passant)
+	bool is_en_passant = false;
+
+	// Check piece rules (invalid moves immediately return false; whitelisted moves pass through)
+	switch (pc) {
+		case WP1:
+		case WP2:
+		case WP3:
+		case WP4:
+		case WP5:
+		case WP6:
+		case WP7:
+		case WP8:
+			if (dy == -1 && ((tx == fx && colorAt[tt] == NOBODY) || (ldx == 1 && colorAt[tt] == enemy))) break;	// One forward or capture
+			if (fy == 6 && ty == 4 && tx == fx && colorAt[tt] == NOBODY) break;	// Two forward
+			if (fy == 3 && ty == 2 && ldx == 1 && BOARD(ty+1, tx) >= BP1 && BOARD(ty+1, tx) <= BP8 && enPassantBlack[BOARD(ty+1, tx) - BP1]) {
+				is_en_passant = true;
+				break;
+			}
+			return FAIL_ILLEGAL;
+			break;
+		case BP1:
+		case BP2:
+		case BP3:
+		case BP4:
+		case BP5:
+		case BP6:
+		case BP7:
+		case BP8:
+			if (dy == 1 && ((tx == fx && colorAt[tt] == NOBODY) || (ldx == 1 && colorAt[tt] == enemy))) break;	// One forward or capture
+			if (fy == 1 && ty == 3 && tx == fx && colorAt[tt] == NOBODY) break;	// Two forward
+			if (fy == 4 && ty == 5 && ldx == 1 && BOARD(ty+1, tx) >= WP1 && BOARD(ty+1, tx) <= WP8 && enPassantWhite[BOARD(ty+1, tx) - WP1]) {
+				is_en_passant = true;
+				break;
+			}
+			return FAIL_ILLEGAL;
+			break;
+		case WR1:
+		case WR2:
+		case BR1:
+		case BR2:
+			if (dy == 0) {	// Horizontal
+				if (dx < 0) {	// Left
+					for (char x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				} else {	// Right (dx > 0); the (dx == 0) case is handled earlier with "no movement"
+					for (char x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				}
+			} else if (dx == 0) {	// Vertical
+				if (dy < 0) {	// Up
+					for (char y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				} else {	// Down (dy > 0); the (dy == 0) case is handled earlier with "no movement"
+					for (char y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				}
+			}
+			return FAIL_ILLEGAL;
+			break;
+		case WN1:
+		case WN2:
+		case BN1:
+		case BN2:
+			if ((ldx == 1 && ldy == 2) || (ldx == 2 && ldy == 1)) break;
+			return FAIL_ILLEGAL;
+			break;
+		case WB1:
+		case WB2:
+		case BB1:
+		case BB2:
+			if (ldx != ldy) return FAIL_ILLEGAL;	// Blacklist non-diag movement
+			if (dy < 0) {
+				if (dx < 0) {	// Up-left
+					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				} else {		// Up-right (dx > 0); (dx == 0) ruled out earlier
+					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				}
+			} else {	// (dy > 0); (dy == 0) ruled out earlier
+				if (dx < 0) {	// Down-left
+					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				} else {		// Down-right (dx > 0); (dx == 0) ruled out earlier
+					for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				}
+			}
+			return FAIL_ILLEGAL;
+			break;
+		case WQ1:
+		case WQ2:
+		case WQ3:
+		case WQ4:
+		case WQ5:
+		case BQ1:
+		case BQ2:
+		case BQ3:
+		case BQ4:
+		case BQ5:
+			if (dy < 0) {
+				if (dx == 0) {	// Up
+					for (char y = fy - 1; y >= ty + 1; --y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				} else if (ldx == ldy) {
+					if (dx < 0) {	// Up-left
+						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx-i) != NOBODY) return FAIL_ILLEGAL;
+						break;
+					} else {		// Up-right (dx > 0)
+						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy-i, fx+i) != NOBODY) return FAIL_ILLEGAL;
+						break;
+					}
+				}
+			} else if (dy == 0) {
+				if (dx < 0) {	// Left
+					for (char x = fx - 1; x >= tx + 1; --x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				} else {	// Right (dx > 0); the (dx == 0) case is handled earlier with "no movement"
+					for (char x = fx + 1; x <= tx - 1; ++x) if (COLORAT(fy, x) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				}
+			} else {
+				if (dx == 0) {	// Down
+					for (char y = fy + 1; y <= ty - 1; ++y) if (COLORAT(y, fx) != NOBODY) return FAIL_ILLEGAL;
+					break;
+				} else if (ldx == ldy) {
+					if (dx < 0) {	// Down-left
+						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx-i) != NOBODY) return FAIL_ILLEGAL;
+						break;
+					} else {		// Down-right (dx > 0)
+						for (char i = 1; i <= ldy - 1; ++i) if (COLORAT(fy+i, fx+i) != NOBODY) return FAIL_ILLEGAL;
+						break;
+					}
+				}
+			}
+			return FAIL_ILLEGAL;
+			break;
+		case WK:
+			if (ff == 60 && (tt == 58 || tt == 62) && !is_under_attack(60, board, friendly, enemy)) {
+				if (tt == 58 && couldCastleWhite[0]												// Queen-side castle
+					 && colorAt[57] == NOBODY && colorAt[58] == NOBODY && colorAt[59] == NOBODY	// Ensure path free for king & rook
+					 && !is_under_attack(58, board, friendly, enemy)							// Don't go through check
+					 && !is_under_attack(59, board, friendly, enemy)) break;
+				if (tt == 62 && couldCastleWhite[1]								// King-side castle
+					 && colorAt[61] == NOBODY && colorAt[62] == NOBODY			// Ensure path free for king & rook
+					 && !is_under_attack(61, board, friendly, enemy)			// Don't go through check
+					 && !is_under_attack(62, board, friendly, enemy)) break;
+			}
+			if (ldx <= 1 && ldy <= 1) break;	// 1-square king move
+			return FAIL_ILLEGAL;
+			break;
+		case BK:
+			if (ff == 4 && (tt == 2 || tt == 6) && !is_under_attack(4, board, friendly, enemy)) {
+				if (tt == 2 && couldCastleBlack[0]												// Queen-side castle
+					 && colorAt[1] == NOBODY && colorAt[2] == NOBODY && colorAt[3] == NOBODY	// Ensure path free for king & rook
+					 && !is_under_attack(1, board, friendly, enemy)								// Don't go through check
+					 && !is_under_attack(2, board, friendly, enemy)
+					 && !is_under_attack(3, board, friendly, enemy)) break;
+				if (tt == 6 && couldCastleBlack[1]								// King-side castle
+					 && colorAt[5] == NOBODY && colorAt[6] == NOBODY			// Ensure path free for king & rook
+					 && !is_under_attack(5, board, friendly, enemy)				// Don't go through check
+					 && !is_under_attack(6, board, friendly, enemy)) break;
+			}
+			if (ldx <= 1 && ldy <= 1) break;	// 1-square king move
+			return FAIL_ILLEGAL;
+			break;
+		default:
+			return FAIL_OTHER;
+			break;
+	}
+
+	// Castling has already been taken care of; must be legal by now
+	if ((pc == WK || pc == BK) && ldx == 2) {
+		char rook_ff, rook_tt;
+		switch (tt) {
+			case 2:		// Black queen-side
+				rook_ff = 0;
+				rook_tt = 3;
+				break;
+			case 6:		// Black king-side
+				rook_ff = 7;
+				rook_tt = 5;
+				break;
+			case 58:	// White queen-side
+				rook_ff = 56;
+				rook_tt = 59;
+				break;
+			case 62:	// White king-side
+				rook_ff = 63;
+				rook_tt = 61;
+				break;
+			default:
+				return FAIL_OTHER;
+				break;
+		}
+		
+		st->nextPlayer = enemy;
+
+		board[rook_tt] = board[rook_ff];
+		board[rook_ff] = EMPTY;
+		board[tt] = board[ff];
+		board[ff] = EMPTY;
+		
+		colorAt[rook_tt] = colorAt[rook_ff];
+		colorAt[rook_ff] = NOBODY;
+		colorAt[tt] = colorAt[ff];
+		colorAt[ff] = EMPTY;
+		
+		pieces[board[tt]] = tt;
+		pieces[board[rook_tt]] = rook_tt;
+		
+		if (pc == WK) {
+			for (int i = 0; i < 2; ++i) couldCastleWhite[i] = false;
+			for (int i = 0; i < 8; ++i) enPassantWhite[i] = false;
+		} else if (pc == BK) {
+			for (int i = 0; i < 2; ++i) couldCastleBlack[i] = false;
+			for (int i = 0; i < 8; ++i) enPassantBlack[i] = false;
+		}
+		
+		return SUCCESS;
+	}
+
+	// Make sure king doesn't end up in check
+	const char king_loc = (pc == WK || pc == BK) ? tt : pieces[(friendly == WHITE) ? WK : BK];
+	const piece possible_capture	= is_en_passant ? (friendly == WHITE ? BOARD(ty+1, tx) : BOARD(ty-1, tx)) : board[tt];
+	const char possible_capture_loc	= is_en_passant ? (friendly == WHITE ? SIZE*(ty+1)+tx  : SIZE*(ty-1)+tx ) : tt;
+	
+	// Simulate the move
+	board[possible_capture_loc] = EMPTY;
+	board[tt] = board[ff];
+	board[ff] = EMPTY;
+
+	if (!is_under_attack(king_loc, board, friendly, enemy)) {
+		st->nextPlayer = enemy;
+
+		// Pawn promotions (if there are enough queens)
+		piece new_queen = EMPTY;
+		if (is_white_pawn(pc) && ty == 0) {
+			new_queen = (pieces[WQ5] == -1 ? WQ5 : pieces[WQ4] == -1 ? WQ4 : pieces[WQ3] == -1 ? WQ3 : pieces[WQ2] == -1 ? WQ2 : pieces[WQ1] == -1 ? WQ1 : EMPTY);
+		} else if (is_black_pawn(pc) && ty == 7) {
+			new_queen = (pieces[BQ5] == -1 ? BQ5 : pieces[BQ4] == -1 ? BQ4 : pieces[BQ3] == -1 ? BQ3 : pieces[BQ2] == -1 ? BQ2 : pieces[BQ1] == -1 ? BQ1 : EMPTY);
+		}
+		if (new_queen != EMPTY) {
+			board[tt] = new_queen;
+			pieces[pc] = -1;
+		}
+
+		colorAt[possible_capture_loc] = NOBODY;
+		colorAt[tt] = colorAt[ff];
+		colorAt[ff] = NOBODY;
+
+		pieces[board[tt]] = tt;
+		if (possible_capture != EMPTY) pieces[possible_capture] = -1;
+
+		if (friendly == WHITE) {
+			if (couldCastleWhite[0] && (pc == WK || pc == WR1)) couldCastleWhite[0] = false;
+			if (couldCastleWhite[1] && (pc == WK || pc == WR2)) couldCastleWhite[1] = false;
+			for (int i = 0; i < 8; ++i) enPassantWhite[i] = false;
+			if (is_white_pawn(pc) && dy == -2) enPassantWhite[pc - WP1] = true;
+		} else if (friendly == BLACK) {
+			if (couldCastleBlack[0] && (pc == BK || pc == BR1)) couldCastleBlack[0] = false;
+			if (couldCastleBlack[1] && (pc == BK || pc == BR2)) couldCastleBlack[1] = false;
+			for (int i = 0; i < 8; ++i) enPassantBlack[i] = false;
+			if (is_black_pawn(pc) && dy == 2) enPassantBlack[pc - BP1] = true;
+		}
+
+		return SUCCESS;
+
+	} else {
+		// Undo the move
+		board[ff] = board[tt];
+		board[tt] = EMPTY;
+		board[possible_capture_loc] = possible_capture;
+		return FAIL_CHECK;
+	}
 }
 
 // Plays a "random" move & stores it in mv
@@ -906,6 +1261,9 @@ void chess_print_move_result(move_result result) {
 			break;
 		case FAIL_OCCUPIED:
 			wprintf(L"Square occupied\n");
+			break;
+		case FAIL_ILLEGAL:
+			wprintf(L"Illegal\n");
 			break;
 		case FAIL_CHECK:
 			wprintf(L"King in check\n");

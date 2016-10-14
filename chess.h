@@ -17,7 +17,7 @@
 
 typedef enum { NOBODY, WHITE, BLACK } color;
 
-typedef enum { SUCCESS, FAIL_GAME_ENDED, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_CHECK, FAIL_OTHER } move_result;
+typedef enum { SUCCESS, FAIL_GAME_ENDED, FAIL_BOUNDS, FAIL_OCCUPIED, FAIL_ILLEGAL, FAIL_CHECK, FAIL_OTHER } move_result;
 
 typedef enum { PLAYING, STALEMATE, CHECKMATE, RESIGNED } game_status;
 
@@ -32,8 +32,8 @@ typedef enum {
 #define PIECE_BLACK_MAX BQ9
 
 typedef struct {
-	color nextPlayer;	// Player that has to move next, or if game_status CHECKMATE or RESIGNED, the losing player
 	game_status status;
+	color nextPlayer;	// Player that has to move next, or if game_status CHECKMATE or RESIGNED, the losing player
 	piece board[COUNT];		// Array of 64 "pieces"
 	color colorAt[COUNT];	// Array of 64 "colors"
 	char pieces[NPIECES];	// Array of locations of all 32 pieces (actually 33, but disregard [EMPTY] = 255)
