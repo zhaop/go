@@ -35,30 +35,6 @@ int main() {
 
 	long double sum_dt = 0;
 
-	// size_t Nnums = 1e8;
-	// size_t Niter = 12;
-
-	// for (size_t iter = 0; iter < Niter; ++iter) {
-	// 	t0 = timer_now();
-	// 	for (size_t i = 0; i < Nnums; ++i) {
-	// 		// wprintf(L"%d ", xrandi());
-	// 		// wprintf(L"%d ", xrandi81(-1, 81));
-	// 		// wprintf(L"%d ", xrandi361(-1, 361));
-	// 		// wprintf(L"%d\n", RANDI(-1, 361));
-	// 		// randtest = RANDI(-1, 361);
-	// 	}
-	// 	dt = timer_now() - t0;
-
-	// 	if (iter != 0 && iter != Niter-1) {
-	// 		sum_dt += dt;
-	// 		wprintf(L"Time taken: %.0Lf ms", dt*1e3);
-	// 	}
-	// 	wprintf(L"\n");
-	// }
-
-	// wprintf(L"Average: %.1Lf ms\n", sum_dt/(Niter-2)*1e3);
-	// return 0;
-
 	while (1) {
 		if (go_is_game_over(st)) {
 			state_print(st);
