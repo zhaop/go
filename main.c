@@ -1,14 +1,19 @@
 #include <locale.h>
+#include <unistd.h>
 #include <wchar.h>
 #include "go.h"
 #include "players/human.h"
 #include "players/teresa.h"
 #include "utils.h"
 
-int main() {
-	setlocale(LC_ALL, "");
-	seed_rand_once();
+int console_main() {
+	wprintf(L"You're in the console. Congrats!\n");
 
+	wprintf(L"Not implemented :(\n");
+	return 1;
+}
+
+int game_main() {
 	long double t0, dt;
 
 	state* st = state_create();
@@ -93,4 +98,30 @@ int main() {
 	wprintf(L"Average thinking time: %.2Lf ms\n", sum_dt/t*1e3);
 
 	return 0;
+}
+
+int main(int argc, char* argv[]) {
+	setlocale(LC_ALL, "");
+	seed_rand_once();
+
+	// Parse command line arguments
+	int opt;
+	bool console = false;
+	while ((opt = getopt(argc, argv, "c")) != -1) {
+		switch (opt) {
+			case 'c':
+				console = true;
+				break;
+			default:
+				fwprintf(stderr, L"Usage: %s [-c]\n", argv[0]);
+				return 1;
+				break;
+		}
+	}
+
+	if (console) {
+		return console_main();
+	} else {
+		return game_main();
+	}
 }
