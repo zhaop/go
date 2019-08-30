@@ -61,6 +61,7 @@ typedef struct {
 	addr possibleKo;		// Board index or NO_POSSIBLE_KO
 	int passes;		// Consecutive passes (when 2, game is over)
 	int prisoners[3];
+	float komi;
 	struct dot board[COUNT];
 	struct group_pool groups;
 } state;

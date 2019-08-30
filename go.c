@@ -426,6 +426,7 @@ state* state_create() {
 	st->passes = 0;
 	st->prisoners[BLACK] = 0.0;
 	st->prisoners[WHITE] = 0.0;
+	st->komi = 0.0;
 
 	dot* board = st->board;
 	for (int i = 0; i < COUNT; ++i) {
@@ -460,6 +461,7 @@ void state_copy(state* st0, state* st1) {
 	st1->passes = st0->passes;
 	st1->prisoners[1] = st0->prisoners[1];
 	st1->prisoners[2] = st0->prisoners[2];
+	st1->komi = st0->komi;
 
 	dot* board0 = st0->board;
 	dot* board1 = st1->board;
@@ -541,6 +543,8 @@ void state_dump(state* st) {
 		wprintf(L"No possible ko\n");
 	}
 
+	wprintf(L"Komi is %.1f\n", st->komi);
+
 	double t0 = timer_now();
 	for (int i = 0; i < COUNT; ++i) {
 		dot* stone = &board[i];
@@ -558,7 +562,7 @@ void state_score(state* st, float* score, bool chinese_rules) {
 	dot* board = st->board;
 
 	score[BLACK] = st->prisoners[BLACK];
-	score[WHITE] = st->prisoners[WHITE] + KOMI;
+	score[WHITE] = st->prisoners[WHITE] + st->komi;
 
 	bool already_counted[COUNT];
 	memset(already_counted, (int) false, sizeof(bool) * COUNT);
