@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <wchar.h>
 
-#define SIZE 5
+#define SIZE 9
 #define COUNT (SIZE*SIZE)
 
 #define NGROUPS (COUNT-1)
@@ -103,6 +103,12 @@ void state_copy(state*, state*);
 void state_destroy(state*);
 
 void state_print(state*);
+
+char gtp_col_char(int);
+
+void gtp_row_char(int, char row[3]);
+
+void state_print_gtp(state*);
 
 void state_dump(state*);
 

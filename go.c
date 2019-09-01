@@ -529,7 +529,72 @@ void state_print(state* st) {
 	state_score(st, score, false);
 	double dt = timer_now() - t0;
 
-	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f us]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt*1e6);
+	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f ms]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt/1e6);
+}
+
+char gtp_col_char(int j) {
+	int numGtpCols = 25;
+	if (j < 0 || j >= numGtpCols) {
+		return '?';
+	} else {
+		char gtpCols[25] = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
+		return gtpCols[j];
+	}
+}
+
+void gtp_row_char(int i, char row[3]) {
+	if (i < 0 || i >= 99) {
+		// "??"
+		row[0] = '?';
+		row[1] = '?';
+		row[2] = '\0';
+	} else {
+		snprintf(row, 3, "%-2d", i + 1);
+	}
+}
+
+// Can be used for GTP's "showboard" command (top-bottom flipped, no consecutive line returns)
+void state_print_gtp(state* st) {
+	color nextPlayer = st->nextPlayer;
+	color enemy = (st->nextPlayer == BLACK) ? WHITE : BLACK;
+	int* prisoners = st->prisoners;
+	dot* board = st->board;
+
+	wprintf(L"   ");
+	for (int i = 0; i < SIZE; ++i) {
+		wprintf(L"%c ", gtp_col_char(i));
+	}
+	wprintf(L"\n   ");
+	for (int i = 0; i < SIZE; ++i) {
+		wprintf(L"  ");
+	}
+	wprintf(L"(%lc %d%c  %lc %d%c)",
+		color_char(BLACK), prisoners[BLACK], (nextPlayer == BLACK ? '*' : ' '),
+		color_char(WHITE), prisoners[WHITE], (nextPlayer == WHITE ? '*' : ' '));
+	if (st->passes == 1) {
+		wprintf(L" (%lc passed)", color_char(enemy));
+	} else if (st->passes == 2) {
+		wprintf(L" (game ended)");
+	} else if (st->passes >= 3) {
+		wprintf(L" (game ended: %lc resigned)", color_char(enemy));
+	}
+	for (int i = SIZE - 1; i >= 0; --i) {
+		char row[3];
+		gtp_row_char(i, row);
+		wprintf(L"\n%s ", row);
+		for (int j = 0; j < SIZE; ++j) {
+			wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
+		}
+	}
+
+	float score[3] = {0.0, 0.0, 0.0};
+
+	double t0 = timer_now();
+	state_score(st, score, false);
+	double dt = timer_now() - t0;
+
+	wprintf(L"\nKomi: %.1f", st->komi);
+	wprintf(L"\nScore: (%lc %.1f  %lc %.1f) [%.3f ms]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt/1e6);
 }
 
 // Debug info about groups & ko
@@ -554,7 +619,7 @@ void state_dump(state* st) {
 		}
 	}
 	double dt = timer_now() - t0;
-	wprintf(L"Dumping groups took [%.3f us]\n", dt*1e6);
+	wprintf(L"Dumping groups took [%.3f ms]\n", dt/1e6);
 }
 
 // Score must be a float array[3]
