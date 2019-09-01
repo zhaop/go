@@ -54,6 +54,7 @@ typedef struct {
 } teresa_params;
 
 move_result teresa_play(player*, state*, move*);
+void teresa_reset(player*);
 void teresa_observe(player*, state*, color, move*);
 
 void g(teresa_tree*, teresa_node);

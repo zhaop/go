@@ -591,9 +591,22 @@ static void teresa_reset_all_trace_of_move(teresa_tree* tree, teresa_node nd, mo
 	}
 }
 
+void teresa_reset(player* self) {
+	if (!self) return;
+
+	teresa_params* params = self->params;
+	teresa_tree* tree = params->tree;
+
+	if (tree) {
+		teresa_node_destroy(tree, tree->root);
+		tree->root = NODE_NULL;
+		teresa_init_tree(tree);
+	}
+}
+
 void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) {
 	st = st;	// @gcc pls dont warn kthx
-	opponent = opponent;
+	opponent = opponent;	// @gcc same
 
 	teresa_params* params = self->params;
 	teresa_tree* tree = params->tree;
@@ -632,18 +645,26 @@ void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) 
 		teresa_destroy_all_children_except_one(tree, root, found);
 		tree->root = root = found;
 	} else if (*opponent_mv == MOVE_PASS) {
-		wprintf(L"I observed an unexpected pass, which confuses me\n");
-		teresa_node_destroy(tree, root);
-		tree->root = NODE_NULL;
+		if (TERESA_DEBUG) {
+			wprintf(L"I observed an unexpected pass, which confuses me\n");
+		}
+
+		teresa_reset(self);
 	} else if (*opponent_mv == MOVE_RESIGN) {
-		wprintf(L"I observed a resignation\n");
-		teresa_node_destroy(tree, root);
-		tree->root = NODE_NULL;
+		if (TERESA_DEBUG) {
+			wprintf(L"I observed a resignation\n");
+		}
+
+		teresa_reset(self);
 	} else {
-		wprintf(L"Error: Teresa could not observe opponent move ");
-		move_print(opponent_mv);
-		wprintf(L"\n");
-		wprintf(L"This is not normal and must be an untreated edge case.\n");
+		if (TERESA_DEBUG) {
+			wprintf(L"Error: Teresa could not observe opponent move ");
+			move_print(opponent_mv);
+			wprintf(L"\n");
+			wprintf(L"This is not normal and must be an untreated edge case.\n");
+		}
+
+		teresa_reset(self);
 	}
 
 	// Go through each child; once move opponent_mv found, delete the whole branch; then recurse on each child
