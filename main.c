@@ -30,7 +30,6 @@ Commands supported:
 - p 1|2 %c%c
   Play move %c%c as player 1|2. %c%c parseable by move_parse.
   Errors:
-  - !player
   - !move
   - !illegal
   - !result
@@ -38,7 +37,6 @@ Commands supported:
 - g 1|2
   Calculate a move for the next player & print it (%c%c).
   Errors: 
-  - !player
   - !result
 
 - p
@@ -185,9 +183,10 @@ int console_main() {
 
 				color player = (player_in == 1) ? BLACK : WHITE;
 				if (player != st->nextPlayer) {
-					// TODO Violates GTP: color "should" not be constrained
-					wprintf(L"!player: not player %d's turn\n", player_in);
-					continue;
+					// Playing out-of-turn: change player & clear Teresa game tree
+					// (Some engine probably reloading a past game state)
+					st->nextPlayer = player;
+					teresa_reset(&teresa);
 				}
 
 				move mv;
@@ -228,9 +227,9 @@ int console_main() {
 
 				color player = (player_in == 1) ? BLACK : WHITE;
 				if (player != st->nextPlayer) {
-					// TODO Violates GTP: color "should" not be constrained
-					wprintf(L"!player: not player %d's turn\n", player_in);
-					continue;
+					// Playing out-of-turn: change player & clear Teresa game tree
+					st->nextPlayer = player;
+					teresa_reset(&teresa);
 				}
 
 				move mv;
