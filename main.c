@@ -33,15 +33,13 @@ Commands supported:
   - !player
   - !move
   - !illegal
-  - !play %d
-    %d is move_result ("error code")
+  - !result
 
 - g 1|2
   Calculate a move for the next player & print it (%c%c).
   Errors: 
   - !player
-  - !play %d
-    %d is move_result ("error code")
+  - !result
 
 - p
   Draw the current state.
@@ -49,21 +47,48 @@ Commands supported:
 - q
   Quit
 */
+void console_print_help(FILE* stream) {
+	fwprintf(stream, L"?       Display help\n");
+	fwprintf(stream, L"c       Reset the game state\n");
+	fwprintf(stream, L"d       Print a drawing of the current state\n");
+	fwprintf(stream, L"dd      Print debug infos on the current state\n");
+	fwprintf(stream, L"dg      Print a GTP-compatible drawing of the current state\n");
+	fwprintf(stream, L"k 6.5   Set komi to 6.5\n");
+	fwprintf(stream, L"p 1 8b  Play move 8b as Black (player 1)\n");
+	fwprintf(stream, L"g 2     Calculate a move for White (player 2)\n");
+	fwprintf(stream, L"q       Quit\n");
+}
+
 int console_main() {
-	wprintf(L"Go console mode\n");
+	// Turn off output buffering so other scripts can interact with this console
+	setbuf(stdin, NULL);
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
+
+	fwprintf(stderr, L"Go console mode\n");
+	console_print_help(stderr);
 
 	state* st = state_create();
 
-	teresa_params teresap = {500000, 0.5, 1.1, NULL, NULL};
+	teresa_params teresap = {50000, 0.5, 1.1, NULL, NULL};
 	player teresa = {"genmove", &teresa_play, &teresa_observe, &teresap};
 
 	while (true) {
 		wprintf(L"> ");
+		fflush(stdout);
 
 		int result;
 
 		char input[256];
-		fgets(input, 255, stdin);
+		if (!fgets(input, 255, stdin)) {
+			if (feof(stdin)) {
+				wprintf(L"!feof\n");
+				return 0;
+			} else if (ferror(stdin)) {
+				wprintf(L"!ferror\n");
+				return 1;
+			}
+		}
 		input[255] = '\0';
 
 		char line[256];
@@ -71,46 +96,47 @@ int console_main() {
 		line[255] = '\0';
 
 		char command = line[0];
-
 		switch (command) {
 			case '\0':
 				continue;
 				break;
 			case '?':
-				wprintf(L"?       Display help\n");
-				wprintf(L"c       Reset the game state\n");
-				wprintf(L"d       Print a drawing of the current state\n");
-				wprintf(L"dd      Print debug infos on the current state\n");
-				wprintf(L"k 6.5   Set komi to 6.5\n");
-				wprintf(L"p 1 8b  Play move 8b as Black (player 1)\n");
-				wprintf(L"g 2     Calculate a move for White (player 2)\n");
-				wprintf(L"q       Quit\n");
-				break;
 			case 'c':
 			case 'q':
 			case 'v':
 				break;
 			case 'd':
-				if (line[1] != '\0' && line[1] != 'd') {
-					wprintf(L"!syntax\n");
-					continue;
+				// d or dd
+				switch (line[1]) {
+					case '\0':
+					case 'd':
+					case 'g':
+						break;
+					default:
+						wprintf(L"!command: d%c is not a command\n", line[1]);
+						continue;
+						break;
 				}
 				break;
 			case 'k':
 			case 'p':
 			case 'g':
 				if (line[1] != ' ') {
-					wprintf(L"!syntax\n");
+					wprintf(L"!syntax: Missing 1 space after command\n");
 					continue;
 				}
 				break;
 			default:
-				wprintf(L"!command\n");
+				wprintf(L"!command: %c is not a command\n", command);
 				continue;
 				break;
 		}
 
 		switch (command) {
+			case '?': {
+				console_print_help(stdout);
+				break;
+			}
 			case 'c': {
 				float komi = st->komi;
 				state_destroy(st);
@@ -124,6 +150,8 @@ int console_main() {
 					state_print(st);
 				} else if (line[1] == 'd') {
 					state_dump(st);
+				} else if (line[1] == 'g') {
+					state_print_gtp(st);
 				}
 				break;
 			}
@@ -132,7 +160,7 @@ int console_main() {
 				result = sscanf(line + 2, "%f", &komi);
 
 				if (result != 1) {
-					wprintf(L"!syntax\n");
+					wprintf(L"!invalid: komi is not a float\n");
 					continue;
 				}
 
@@ -146,25 +174,25 @@ int console_main() {
 				result = sscanf(line + 2, "%d %c%c%c", &player_in, mv_in, mv_in + 1, &test);
 
 				if (result != 3) {
-					wprintf(L"!syntax\n");
+					wprintf(L"!syntax: only got %d out of 3 in (player, row, col)\n", result);
 					continue;
 				}
 
 				if (player_in != 1 && player_in != 2) {
-					wprintf(L"!syntax\n");
+					wprintf(L"!syntax: player %d is not 1 or 2\n", player_in);
 					continue;
 				}
 
 				color player = (player_in == 1) ? BLACK : WHITE;
 				if (player != st->nextPlayer) {
 					// TODO Violates GTP: color "should" not be constrained
-					wprintf(L"!player\n");
+					wprintf(L"!player: not player %d's turn\n", player_in);
 					continue;
 				}
 
 				move mv;
 				if (!move_parse(&mv, mv_in)) {
-					wprintf(L"!move\n");
+					wprintf(L"!move: %c%c not a valid move in this configuration\n", mv_in[0], mv_in[1]);
 					continue;
 				}
 
@@ -176,7 +204,8 @@ int console_main() {
 				// play(move)
 				move_result mv_result = go_play_move(st, &mv);
 				if (mv_result != SUCCESS) {
-					wprintf(L"!play %d\n", mv_result);
+					wprintf(L"!result: move_result is %d = ", mv_result);
+					go_print_move_result(mv_result);
 					continue;
 				}
 
@@ -187,27 +216,32 @@ int console_main() {
 				int player_in;
 				result = sscanf(line + 2, "%d", &player_in);
 
+				if (result != 1) {
+					wprintf(L"!syntax: player is not valid\n");
+					continue;
+				}
+
 				if (player_in != 1 && player_in != 2) {
-					wprintf(L"!syntax\n");
+					wprintf(L"!syntax: player %d is not 1 or 2\n", player_in);
 					continue;
 				}
 
 				color player = (player_in == 1) ? BLACK : WHITE;
 				if (player != st->nextPlayer) {
 					// TODO Violates GTP: color "should" not be constrained
-					wprintf(L"!player\n");
+					wprintf(L"!player: not player %d's turn\n", player_in);
 					continue;
 				}
 
 				move mv;
 				move_result mv_result = teresa.play(&teresa, st, &mv);
 				if (mv_result != SUCCESS) {
-					wprintf(L"!play %d\n", mv_result);
+					wprintf(L"!result: move_result is %d = ", mv_result);
+					go_print_move_result(mv_result);
 					continue;
 				}
 
 				move_print(&mv);
-				wprintf(L"\n");
 				break;
 			}
 			case 'q': {
@@ -217,6 +251,8 @@ int console_main() {
 			default:
 				break;
 		}
+
+		wprintf(L"\n");
 	}
 	return 0;
 }
@@ -225,6 +261,8 @@ int game_main() {
 	long double t0, dt;
 
 	state* st = state_create();
+	st->komi = 6.5;
+
 	int t = 0;
 
 	player human = {"You", &human_play, NULL, NULL};
@@ -269,13 +307,13 @@ int game_main() {
 		dt = timer_now() - t0;
 
 		if (result != SUCCESS) {
-			wprintf(L"%s has no more moves [%.2Lf us]\n", pl->name, dt*1e6);
+			wprintf(L"%s has no more moves [%.2Lf ms]\n", pl->name, dt/1e6);
 			return 0;
 		}
 
 		wprintf(L"%lc %d %s played ", color_char(pl_color), t, pl->name);
 		move_print(&mv);
-		wprintf(L" [%.0Lf ms]\n", dt*1e3);
+		wprintf(L" [%.0Lf ms]\n", dt/1e6);
 
 		sum_dt += dt;
 
@@ -283,7 +321,7 @@ int game_main() {
 			t0 = timer_now();
 			opponent->observe(opponent, st, pl_color, &mv);
 			dt = timer_now() - t0;
-			wprintf(L"Opponent observed the move [%.0Lf us]\n", dt);
+			wprintf(L"Opponent observed the move [%.0Lf ms]\n", dt/1e6);
 		}
 
 		wprintf(L"\n");
@@ -303,7 +341,7 @@ int game_main() {
 		wprintf(L"Game over: %lc wins by resignation\n", color_char(winner));
 	}
 
-	wprintf(L"Average thinking time: %.2Lf ms\n", sum_dt/t*1e3);
+	wprintf(L"Average thinking time: %.2Lf ms\n", sum_dt/t/1e6);
 
 	return 0;
 }
