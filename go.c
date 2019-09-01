@@ -80,7 +80,7 @@ static inline int char_index(char c) {
 bool is_star_point(int i, int j) {
 	switch (SIZE) {
 		case 9 :
-			return ((i == 2) || (i == 4) || (i == 6)) && ((j == 2) || (j == 4) || (j == 6));
+			return (((i == 2) || (i == 6)) && ((j == 2) || (j == 6))) || ((i == 4) && (j == 4));
 			break;
 		case 13 :
 			return ((i == 3) || (i == 6) || (i == 9)) && ((j == 3) || (j == 6) || (j == 9));
