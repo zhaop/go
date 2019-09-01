@@ -1,5 +1,5 @@
 #!/bin/bash
 
 make
-du -b go.x
-sha1sum go.x
+du go.x
+gsha1sum go.x
