@@ -104,10 +104,6 @@ void state_destroy(state*);
 
 void state_print(state*);
 
-char gtp_col_char(int);
-
-void gtp_row_char(int, char row[3]);
-
 void state_print_gtp(state*);
 
 void state_dump(state*);
