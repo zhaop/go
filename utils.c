@@ -48,8 +48,8 @@ int randi(int a, int b) {
 }
 
 void seed_rand_once() {
-	// srand(time(NULL));
-	srand(42);
+	srand(time(NULL));
+	// srand(42);
 }
 
 int min(int a, int b) {
