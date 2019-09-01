@@ -15,7 +15,7 @@ CFLAGS  = -Wall -Wextra -I${INCLUDE} -O3
 LIBS    = -lm -L/usr/lib
 
 # Source code to compile
-CFILES  = main.c go.c utils.c players/human.c players/randy.c players/karl.c players/teresa.c
+CFILES  = main.c go.c utils.c players/human.c players/karl.c players/randy.c players/teresa.c
 CPPFILES = 
 
 # Object files (generated using CFILES)
