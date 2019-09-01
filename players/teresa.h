@@ -2,7 +2,7 @@
 #define PLAYERS_TERESA_H
 
 #define TERESA_MAX_NODES 30000*(COUNT)
-#define TERESA_RESIGN_THRESHOLD 0.01
+#define TERESA_RESIGN_THRESHOLD 0.05
 #define TERESA_DEBUG 0
 
 typedef uint32_t teresa_node;
