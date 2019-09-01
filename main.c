@@ -68,7 +68,7 @@ int console_main() {
 
 	state* st = state_create();
 
-	teresa_params teresap = {50000, 0.5, 1.1, NULL, NULL};
+	teresa_params teresap = {500000, 0.5, 1.1, NULL, NULL};
 	player teresa = {"genmove", &teresa_play, &teresa_observe, &teresap};
 
 	while (true) {
