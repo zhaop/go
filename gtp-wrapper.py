@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import atexit
 import fcntl
 import os
 import re
@@ -90,6 +91,13 @@ class GtpWrapper:
 		self.engine = subprocess.Popen([engine_path, '-c'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		self.debug = debug
 		self.log_file = log_file
+		atexit.register(self._cleanup)
+
+	def _cleanup(self):
+		if self.engine.poll() is not None:
+			result = self.engine.wait(1)
+			if result is None:
+				self.engine.terminate()
 
 	def _set_blocking(self, fd):
 		flags = fcntl.fcntl(fd, fcntl.F_GETFL) & ~os.O_NONBLOCK
