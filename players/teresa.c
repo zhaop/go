@@ -107,7 +107,7 @@ static inline teresa_node teresa_node_sibling(teresa_tree* tree, teresa_node nd,
 }
 
 // Initialize tree: empty decision tree, flat free tree
-static void teresa_init_tree(teresa_tree* tree) {
+static void teresa_tree_init(teresa_tree* tree) {
 	tree->root = NODE_NULL;
 	
 	teresa_node node;
@@ -136,12 +136,12 @@ static void teresa_init_tree(teresa_tree* tree) {
 
 }
 
-static void teresa_init_params(void* params) {
+static void teresa_params_init(void* params) {
 	teresa_tree* tree = ((teresa_params*) params)->tree;
 	if (!tree) {
 		tree = malloc(sizeof(teresa_tree));
 		((teresa_params*) params)->tree = tree;
-		teresa_init_tree(tree);
+		teresa_tree_init(tree);
 
 		teresa_node root = teresa_node_create(tree);
 		assert(root);
@@ -447,7 +447,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	color me = st0->nextPlayer;
 	color notme = (me == BLACK) ? WHITE : BLACK;
 
-	teresa_init_params(self->params);
+	teresa_params_init(self->params);
 	teresa_params* params = (teresa_params*) self->params;
 
 	int N = params->N;
