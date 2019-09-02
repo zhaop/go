@@ -89,9 +89,11 @@ class GtpWrapper:
 
 	def __init__(self, engine_path, debug=False, log_file=None):
 		self.engine = subprocess.Popen([engine_path, '-c'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		self._set_nonblocking(self.engine.stderr)
+		atexit.register(self._cleanup)
+
 		self.debug = debug
 		self.log_file = log_file
-		atexit.register(self._cleanup)
 
 	def _cleanup(self):
 		if self.engine.poll() is not None:
@@ -128,8 +130,19 @@ class GtpWrapper:
 	def call_engine(self, cmd, multiline=False):
 		engine = self.engine
 
+		returncode = engine.poll()
+		if returncode is not None:
+			self._log('# engine is gone with code {}\n'.format(returncode))
+
 		# Clear stdout
-		self._read_until(engine.stdout, b'> ')
+		buf = self._read_until(engine.stdout, b'> ')
+		if buf:
+			self._log('# engine.out > {}\n'.format(repr(buf)))
+
+		# Log stderr
+		buf = engine.stderr.read()
+		if buf:
+			self._log('# engine.err > {}\n'.format(repr(buf)))
 
 		self._log('< {}\n'.format(cmd))
 
