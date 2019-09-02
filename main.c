@@ -334,7 +334,7 @@ int game_main() {
 	color loser = color_opponent(winner);
 	if (st->passes == 2) {
 		float final_score[3];
-		state_score(st, final_score, false);
+		state_score(st, final_score, true);
 		wprintf(L"Game over: %lc wins by %.1f points.\n", color_char(winner), final_score[winner] - final_score[loser]);
 	} else if (st->passes == 3) {
 		wprintf(L"Game over: %lc wins by resignation\n", color_char(winner));

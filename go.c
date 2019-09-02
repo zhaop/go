@@ -530,7 +530,7 @@ void state_print(state* st) {
 	float score[3] = {0.0, 0.0, 0.0};
 
 	double t0 = timer_now();
-	state_score(st, score, false);
+	state_score(st, score, true);
 	double dt = timer_now() - t0;
 
 	wprintf(L"\n\nScore: (%lc %.1f  %lc %.1f) [%.3f ms]\n", color_char(BLACK), score[BLACK], color_char(WHITE), score[WHITE], dt/1e6);
@@ -594,7 +594,7 @@ void state_print_gtp(state* st) {
 	float score[3] = {0.0, 0.0, 0.0};
 
 	double t0 = timer_now();
-	state_score(st, score, false);
+	state_score(st, score, true);
 	double dt = timer_now() - t0;
 
 	wprintf(L"\nKomi: %.1f", st->komi);
@@ -654,7 +654,7 @@ void state_score(state* st, float* score, bool chinese_rules) {
 color state_winner(state* st) {
 	if (st->passes == 2) {
 		float score[3];
-		state_score(st, score, false);
+		state_score(st, score, true);
 		return (score[BLACK] > score[WHITE]) ? BLACK : WHITE;
 	} else if (st->passes == 3) {
 		return st->nextPlayer;
@@ -904,7 +904,7 @@ bool go_is_move_reasonable(state* st, move* mv_ptr) {
 		return false;
 	} else if (mv == MOVE_PASS) {
 		float score[3];
-		state_score(st, score, false);
+		state_score(st, score, true);
 		if (score[me] < score[notme]) {
 			return false;
 		}
@@ -1091,7 +1091,7 @@ move_result go_play_random_move(state* st, move* mv, move* move_list) {
 		if (tmp == MOVE_PASS && st->passes == 1) {
 			// Forbid deliberate losing by passing
 			float score[3];
-			state_score(st, score, false);
+			state_score(st, score, true);
 			if (score[me] < score[notme]) {
 				continue;
 			}
@@ -1122,7 +1122,7 @@ move_result go_play_random_move(state* st, move* mv, move* move_list) {
 			if (tmp == MOVE_PASS && st->passes == 1) {
 				// Forbid deliberate losing by passing
 				float score[3];
-				state_score(st, score, false);
+				state_score(st, score, true);
 				if (score[me] > score[notme]) {
 					break;
 				}
@@ -1159,7 +1159,7 @@ void go_play_out(state* st, playout_result* result) {
 	}
 
 	float score[3] = {0.0, 0.0, 0.0};
-	state_score(st, score, false);
+	state_score(st, score, true);
 
 	result->winner = (score[BLACK] > score[WHITE]) ? BLACK : WHITE;
 	return;
