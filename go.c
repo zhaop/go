@@ -8,21 +8,21 @@
 #include "rand.h"
 #include "utils.h"
 
-#define ALREADY_COUNTED(i, j) already_counted[(i)*SIZE+(j)]
-#define BOARD(i,j) (board[(i)*SIZE+(j)])
+#define ALREADY_COUNTED(i, j) already_counted[(i)*WIDTH+(j)]
+#define BOARD(i,j) (board[(i)*WIDTH+(j)])
 #define GROUP_AT(i,j) (BOARD(i, j).group)
 #define UP_OK    (i >= 1)
 #define LEFT_OK  (j >= 1)
-#define RIGHT_OK (j <= SIZE-2)
-#define DOWN_OK  (i <= SIZE-2)
+#define RIGHT_OK (j <= WIDTH-2)
+#define DOWN_OK  (i <= HEIGHT-2)
 
 
 INIT_MAKE_RANDI(42, 43);
-#if SIZE >= 12 && SIZE <= 22
+#if COUNT >= 128 && COUNT <= 511
 	MAKE_RANDI512(move_random, -1, COUNT);
-#elif SIZE >= 6 && SIZE <= 11
+#elif COUNT >= 32 && COUNT <= 127
 	MAKE_RANDI128(move_random, -1, COUNT);
-#elif SIZE <= 5
+#elif COUNT <= 31
 	MAKE_RANDI32(move_random, -1, COUNT);
 #endif
 
@@ -78,7 +78,11 @@ static inline int char_index(char c) {
 }
 
 bool is_star_point(int i, int j) {
-	switch (SIZE) {
+	if (WIDTH != HEIGHT) {
+		return false;
+	}
+
+	switch (WIDTH) {
 		case 9 :
 			return (((i == 2) || (i == 6)) && ((j == 2) || (j == 6))) || ((i == 4) && (j == 4));
 			break;
@@ -140,11 +144,11 @@ bool move_parse(move* mv, char str[2]) {
 
 	int i = char_index(str[0]);
 	int j = char_index(str[1]);
-	if (i < 0 || i >= SIZE || j < 0 || j >= SIZE) {
+	if (i < 0 || i >= HEIGHT || j < 0 || j >= WIDTH) {
 		return false;
 	}
 
-	*mv = i * SIZE + j;
+	*mv = i * WIDTH + j;
 	return true;
 }
 
@@ -158,8 +162,8 @@ void move_sprint(wchar_t str[3], move* mv) {
 		return;
 	}
 
-	int i = *mv / SIZE;
-	int j = *mv - i * SIZE;
+	int i = *mv / WIDTH;
+	int j = *mv - i * WIDTH;
 	swprintf(str, 3, L"%c%c", index_char(i), index_char(j));
 }
 
@@ -339,8 +343,8 @@ static int group_kill_stones(dot* board, group* gp) {
 	do {
 		dot* tmp_next = stone->next;
 
-		int i = stone->i / SIZE;
-		int j = stone->i - i * SIZE;
+		int i = stone->i / WIDTH;
+		int j = stone->i - i * WIDTH;
 		++captured;
 
 		// change_neighbors_freedoms_if_specific_color(board, enemy, i, j, +1);	// Manually inlined below
@@ -499,11 +503,11 @@ void state_print(state* st) {
 	dot* board = st->board;
 
 	wprintf(L"   ");
-	for (int i = 0; i < SIZE; ++i) {
-		wprintf(L"%c ", index_char(i));
+	for (int j = 0; j < WIDTH; ++j) {
+		wprintf(L"%c ", index_char(j));
 	}
 	wprintf(L"\n   ");
-	for (int i = 0; i < SIZE; ++i) {
+	for (int j = 0; j < WIDTH; ++j) {
 		wprintf(L"  ");
 	}
 	wprintf(L"(%lc %d%c  %lc %d%c)",
@@ -516,9 +520,9 @@ void state_print(state* st) {
 	} else if (st->passes >= 3) {
 		wprintf(L" (game ended: %lc resigned)", color_char(enemy));
 	}
-	for (int i = 0; i < SIZE; ++i) {
+	for (int i = 0; i < HEIGHT; ++i) {
 		wprintf(L"\n%c  ", index_char(i));
-		for (int j = 0; j < SIZE; ++j) {
+		for (int j = 0; j < WIDTH; ++j) {
 			wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
 		}
 	}
@@ -561,11 +565,11 @@ void state_print_gtp(state* st) {
 	dot* board = st->board;
 
 	wprintf(L"   ");
-	for (int i = 0; i < SIZE; ++i) {
-		wprintf(L"%c ", gtp_col_char(i));
+	for (int j = 0; j < WIDTH; ++j) {
+		wprintf(L"%c ", gtp_col_char(j));
 	}
 	wprintf(L"\n   ");
-	for (int i = 0; i < SIZE; ++i) {
+	for (int j = 0; j < WIDTH; ++j) {
 		wprintf(L"  ");
 	}
 	wprintf(L"(%lc %d%c  %lc %d%c)",
@@ -578,11 +582,11 @@ void state_print_gtp(state* st) {
 	} else if (st->passes >= 3) {
 		wprintf(L" (game ended: %lc resigned)", color_char(enemy));
 	}
-	for (int i = SIZE - 1; i >= 0; --i) {
+	for (int i = HEIGHT - 1; i >= 0; --i) {
 		char row[3];
 		gtp_row_char(i, row);
 		wprintf(L"\n%s ", row);
-		for (int j = 0; j < SIZE; ++j) {
+		for (int j = 0; j < WIDTH; ++j) {
 			wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));
 		}
 	}
@@ -632,9 +636,9 @@ void state_score(state* st, float* score, bool chinese_rules) {
 	bool already_counted[COUNT];
 	memset(already_counted, (int) false, sizeof(bool) * COUNT);
 
-	for (int i = 0; i < SIZE; ++i) {
-		for (int j = 0; j < SIZE; ++j) {
-			if (!already_counted[i*SIZE+j] && BOARD(i, j).player == EMPTY) {
+	for (int i = 0; i < HEIGHT; ++i) {
+		for (int j = 0; j < WIDTH; ++j) {
+			if (!ALREADY_COUNTED(i, j) && BOARD(i, j).player == EMPTY) {
 				territory tr = {EMPTY, 0};
 				count_territory(board, already_counted, i, j, &tr);
 				if (tr.player == BLACK || tr.player == WHITE) {
@@ -679,14 +683,14 @@ bool fills_in_friendly_eye(dot* board, color friendly, int i, int j) {
 		else if (stone->group != gp) return false;
 	}
 
-	if (i <= SIZE-2) {
+	if (i <= HEIGHT-2) {
 		stone = &BOARD(i+1, j);
 		if (stone->player != friendly) return false;
 		if (!gp) gp = stone->group;
 		else if (stone->group != gp) return false;
 	}
 
-	if (j <= SIZE-2) {
+	if (j <= WIDTH-2) {
 		stone = &BOARD(i, j+1);
 		if (stone->player != friendly) return false;
 		if (!gp) gp = stone->group;
@@ -698,7 +702,7 @@ bool fills_in_friendly_eye(dot* board, color friendly, int i, int j) {
 
 // True if ko rule forbids move
 static inline bool check_possible_ko(dot* board, int possibleKo, int i, int j) {
-	if (possibleKo == i*SIZE + j) {
+	if (possibleKo == i*WIDTH + j) {
 		group* gp = GROUP_AT(i, j);
 		return (gp->length == 1) && (gp->freedoms == 1);
 	}
@@ -823,8 +827,8 @@ bool go_is_move_legal(state* st, move* mv_ptr) {
 		return false;
 	}
 
-	int i = mv / SIZE;
-	int j = mv - i * SIZE;
+	int i = mv / WIDTH;
+	int j = mv - i * WIDTH;
 
 	if (BOARD(i, j).player != EMPTY) {
 		return false;
@@ -905,8 +909,8 @@ bool go_is_move_reasonable(state* st, move* mv_ptr) {
 			return false;
 		}
 	} else {
-		int mv_i = mv / SIZE;
-		int mv_j = mv - mv_i * SIZE;
+		int mv_i = mv / WIDTH;
+		int mv_j = mv - mv_i * WIDTH;
 		if (fills_in_friendly_eye(st->board, me, mv_i, mv_j)) {
 			return false;
 		}
@@ -1001,8 +1005,8 @@ move_result go_play_move(state* st, move* mv_ptr) {
 		return FAIL_OCCUPIED;
 	}
 
-	int i = mv / SIZE;
-	int j = mv - i * SIZE;
+	int i = mv / WIDTH;
+	int j = mv - i * WIDTH;
 
 	// Check for simple ko
 	if (st->possibleKo != NO_POSSIBLE_KO) {
@@ -1094,8 +1098,8 @@ move_result go_play_random_move(state* st, move* mv, move* move_list) {
 		} else if (tmp != MOVE_PASS) {
 			if (board[tmp].player == EMPTY) {
 				// Forbid filling in a same group's eye
-				int i = tmp / SIZE;
-				int j = tmp - i * SIZE;
+				int i = tmp / WIDTH;
+				int j = tmp - i * WIDTH;
 				if (fills_in_friendly_eye(board, me, i, j)) {
 					continue;
 				}
@@ -1124,8 +1128,8 @@ move_result go_play_random_move(state* st, move* mv, move* move_list) {
 				}
 			} else if (tmp != MOVE_PASS && board[tmp].player == EMPTY) {
 				// Forbid filling in a same group's eye
-				int i = tmp / SIZE;
-				int j = tmp - i * SIZE;
+				int i = tmp / WIDTH;
+				int j = tmp - i * WIDTH;
 				if (!fills_in_friendly_eye(board, me, i, j)) {
 					break;
 				}
@@ -1190,20 +1194,20 @@ void go_print_heatmap(state* st, move* moves, double* values, int num_moves) {
 	wprintf(L"Between %.1f%% and %.1f%% (50%% is %lc)\n", minval*100, maxval*100, heatmap_char((0.5 - minval) / (maxval - minval) ));
 
 	wprintf(L"   ");
-	for (int i = 0; i < SIZE; ++i) {
-		wprintf(L"%c ", index_char(i));
+	for (int j = 0; j < WIDTH; ++j) {
+		wprintf(L"%c ", index_char(j));
 	}
 	wprintf(L"\n   ");
-	for (int i = 0; i < SIZE; ++i) {
+	for (int j = 0; j < WIDTH; ++j) {
 		wprintf(L"  ");
 	}
 	wprintf(L"(-- %lc)", heatmap_char( (valpass - minval) / (maxval - minval)));
-	for (int i = 0; i < SIZE; ++i) {
+	for (int i = 0; i < HEIGHT; ++i) {
 		wprintf(L"\n%c  ", index_char(i));
-		for (int j = 0; j < SIZE; ++j) {
-			if (!isnan(valboard[i*SIZE+j])) {
+		for (int j = 0; j < WIDTH; ++j) {
+			if (!isnan(valboard[i*WIDTH+j])) {
 				wprintf(L"%lc%c",
-					heatmap_char( (valboard[i*SIZE+j] - minval) / (maxval - minval)),
+					heatmap_char( (valboard[i*WIDTH+j] - minval) / (maxval - minval)),
 					(BOARD(i, j).player == EMPTY) ? ' ' : '*');
 			} else {
 				wprintf(L"%lc ", dot_char(i, j, BOARD(i, j).player));

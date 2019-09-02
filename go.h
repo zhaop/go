@@ -5,13 +5,12 @@
 #include <stdint.h>
 #include <wchar.h>
 
-#define SIZE 9
-#define COUNT (SIZE*SIZE)
+#define WIDTH 9
+#define HEIGHT 9
+#define COUNT (WIDTH*HEIGHT)
 
 #define NGROUPS (COUNT-1)
 #define NMOVES (COUNT+1)
-
-#define KOMI (6.5)
 
 #define NO_POSSIBLE_KO -1
 #define MOVE_PASS -1
