@@ -114,6 +114,8 @@ color state_winner(state*);
 
 bool fills_in_friendly_eye(dot*, color, int, int);
 
+bool go_place_fixed_handicap(state*, int);
+
 bool go_is_game_over(state*);
 
 bool go_is_move_legal(state*, move*);

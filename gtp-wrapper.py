@@ -85,6 +85,7 @@ class GtpWrapper:
 		'play',
 		'genmove',
 		'showboard',
+		'fixed_handicap',
 	}
 
 	def __init__(self, engine_path, debug=False, log_file=None):
@@ -256,6 +257,25 @@ class GtpWrapper:
 	def cmd_showboard(self):
 		result = self.call_engine('dg', multiline=True)
 		return OK, '\n' + result
+
+	def cmd_fixed_handicap(self, number_of_stones):
+		try:
+			cmd = 'h {}'.format(int(number_of_stones, 10))
+		except ValueError:
+			return ERROR, 'syntax error'
+
+		result = self.call_engine(cmd)
+
+		if result.startswith('!syntax'):
+			return ERROR, 'syntax error'
+		elif result.startswith('!number'):
+			return ERROR, 'invalid number of stones'
+		elif result.startswith('!board'):
+			return ERROR, 'board not empty'
+		elif result.startswith('!result'):
+			return ERROR, 'engine error: {}'.format(result.replace('!result: ', ''))
+
+		return OK, ''
 
 	def preprocess(self, line):
 		# [9, 10, 32, ..., 126]

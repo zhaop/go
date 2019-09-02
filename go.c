@@ -803,6 +803,73 @@ static inline void merge_with_every_friendly(dot* board, group_pool* pool, color
 	}
 }
 
+// Return true if n is a valid number of handicap stones, and all stones were correctly placed
+bool go_place_fixed_handicap(state* st, int n) {
+	// 1 to 9 stones
+	if (n < 1 || n > 9) {
+		return false;
+	}
+
+	// Square boards only
+	if (WIDTH != HEIGHT) {
+		return false;
+	}
+
+	// Empty boards only
+	dot* board = st->board;
+	for (int i = 0; i < HEIGHT; ++i) {
+		for (int j = 0; j < WIDTH; ++j) {
+			if (BOARD(i, j).player != EMPTY) {
+				return false;
+			}
+		}
+	}
+
+	int side = (WIDTH < 13) ? 2 : 3;
+	int left, top, right, bottom;
+	left = top = side;
+	right = bottom = WIDTH - side - 1;
+
+	int mid = WIDTH / 2;
+
+	#define MOVE(i, j) ((i)*9 + (j))
+
+	move stones[9] = {MOVE_PASS, MOVE_PASS, MOVE_PASS, MOVE_PASS, MOVE_PASS, MOVE_PASS, MOVE_PASS, MOVE_PASS, MOVE_PASS};
+
+	if (n >= 1) stones[0] = MOVE(top, left);
+	if (n >= 2) stones[1] = MOVE(bottom, right);
+	if (n >= 3) stones[2] = MOVE(bottom, left);
+	if (n >= 4) stones[3] = MOVE(top, right);
+	if (n >= 5) {
+		// Fill up "normal sequence" up to an even number of stones
+		int nEven = (n / 2) * 2; // round n down to nearest even number
+		if (nEven >= 6) {
+			stones[4] = MOVE(mid, left);
+			stones[5] = MOVE(mid, right);
+		}
+		if (nEven >= 8) {
+			stones[6] = MOVE(top, mid);
+			stones[7] = MOVE(bottom, mid);
+		}
+		if (n != nEven) {
+			// Odd n: append tengen stone
+			stones[n - 1] = MOVE(mid, mid);
+		}
+	}
+
+	#undef MOVE
+
+	for (int i = 0; i < n; ++i) {
+		// Make sure we're placing black handicap stones
+		st->nextPlayer = BLACK;
+		if (go_play_move(st, stones + i) != SUCCESS) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 
 bool go_is_game_over(state* st) {
 	return (st->passes >= 2);

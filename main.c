@@ -23,10 +23,18 @@ Commands supported:
 - c
   Reset game state.
 
+- h %d
+  Place %d handicap stones.
+  Errors:
+  - !syntax
+  - !number
+  - !board
+  - !result
+
 - k %f
   Set komi to arg.
   Errors:
-  - !invalid
+  - !syntax
 
 - p 1|2 %c%c
   Play move %c%c as player 1|2. %c%c parseable by move_parse.
@@ -52,6 +60,7 @@ void console_print_help(FILE* stream) {
 	fwprintf(stream, L"d       Print a drawing of the current state\n");
 	fwprintf(stream, L"dd      Print debug infos on the current state\n");
 	fwprintf(stream, L"dg      Print a GTP-compatible drawing of the current state\n");
+	fwprintf(stream, L"h 3     Place 3 handicap stones at their predefined locations\n");
 	fwprintf(stream, L"k 6.5   Set komi to 6.5\n");
 	fwprintf(stream, L"p 1 8b  Play move 8b as Black (player 1)\n");
 	fwprintf(stream, L"g 2     Calculate a move for White (player 2)\n");
@@ -117,6 +126,7 @@ int console_main() {
 						break;
 				}
 				break;
+			case 'h':
 			case 'k':
 			case 'p':
 			case 'g':
@@ -154,12 +164,52 @@ int console_main() {
 				}
 				break;
 			}
+			case 'h': {
+				int numStones;
+				result = sscanf(line + 2, "%d", &numStones);
+
+				if (result != 1) {
+					wprintf(L"!syntax: number of stones is not an int\n");
+					continue;
+				}
+
+				if (numStones < 1 || numStones > 9) {
+					wprintf(L"!number: number of stones must be between 1 and 9 inclusive\n");
+					continue;
+				}
+
+				if (WIDTH != HEIGHT) {
+					wprintf(L"!board: not square\n");
+					continue;
+				}
+
+				dot* board = st->board;
+				bool isEmpty = true;
+				for (int i = 0; i < HEIGHT && isEmpty; ++i) {
+					for (int j = 0; j < WIDTH && isEmpty; ++j) {
+						if (board[i*WIDTH+j].player != EMPTY) {
+							isEmpty = false;
+						}
+					}
+				}
+
+				if (!isEmpty) {
+					wprintf(L"!board: not empty\n");
+					continue;
+				}
+
+				if (!go_place_fixed_handicap(st, numStones)) {
+					wprintf(L"!result: placing stones not all successful\n");
+					continue;
+				}
+				break;
+			}
 			case 'k': {
 				float komi;
 				result = sscanf(line + 2, "%f", &komi);
 
 				if (result != 1) {
-					wprintf(L"!invalid: komi is not a float\n");
+					wprintf(L"!syntax: komi is not a float\n");
 					continue;
 				}
 
