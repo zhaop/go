@@ -591,16 +591,18 @@ static void teresa_reset_all_trace_of_move(teresa_tree* tree, teresa_node nd, mo
 	}
 }
 
+void teresa_tree_destroy(teresa_tree* tree) {
+	teresa_node_destroy(tree, tree->root);
+	free(tree);
+}
+
 void teresa_reset(player* self) {
 	if (!self) return;
 
 	teresa_params* params = self->params;
-	teresa_tree* tree = params->tree;
-
-	if (tree) {
-		teresa_node_destroy(tree, tree->root);
-		tree->root = NODE_NULL;
-		teresa_init_tree(tree);
+	if (params->tree) {
+		teresa_tree_destroy(params->tree);
+		params->tree = NULL;
 	}
 }
 
