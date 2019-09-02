@@ -1,4 +1,5 @@
 #include <locale.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <wchar.h>
 #include "go.h"
