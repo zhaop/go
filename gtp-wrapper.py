@@ -90,6 +90,7 @@ class GtpWrapper:
 		'showboard',
 		'fixed_handicap',
 		'place_free_handicap',
+		'set_free_handicap',
 		'time_left',
 	}
 
@@ -286,6 +287,40 @@ class GtpWrapper:
 
 	def cmd_place_free_handicap(self, number_of_stones):
 		return self.cmd_fixed_handicap(number_of_stones)
+
+	# Board may be left in undefined state if command fails with 'bad vertex list'
+	# (Use 'clear_board' in that case)
+	def cmd_set_free_handicap(self, *vertices):
+		if not (2 <= len(vertices) <= 80):
+			return ERROR, 'bad vertex list'
+		elif len(set(vertices)) != len(vertices):
+			return ERROR, 'bad vertex list'
+		elif 'pass' in vertices:
+			return ERROR, 'bad vertex list'
+
+		try:
+			engine_vertices = map(engine_vertex, vertices)
+		except ValueError:
+			return ERROR, 'syntax error'
+
+		# Check board empty
+		cmd = 'dd'
+		result = self.call_engine(cmd, multiline=True)
+
+		if 'Group' in result and 'head:' in result and 'length:' in result and 'freedoms:' in result and 'list:' in result:
+			return ERROR, 'board not empty'
+
+		# Place handicap stones
+		for vertex in engine_vertices:
+			cmd = 'p 1 {}'.format(vertex)
+			result = self.call_engine(cmd)
+
+			if result.startswith('!move'):
+				return ERROR, 'syntax error'
+			elif result.startswith('!illegal') or result.startswith('!result'):
+				return ERROR, 'engine error: {}'.format(result[1:])
+
+		return OK, ''
 
 	def cmd_time_left(self, color, time, stones):
 		# TODO Implement, not just log
