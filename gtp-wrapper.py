@@ -59,7 +59,10 @@ def gtp_vertex(s):
 	if s == '--':
 		return 'pass'
 
-	i, j = int(s[0], 36), int(s[1], 36)
+	try:
+		i, j = int(s[0], 36), int(s[1], 36)
+	except IndexError:
+		raise ValueError('could not convert engine-vertex s = {} to pair of ints'.format(s))
 
 	col_letters = 'abcdefghjklmnopqrstuvwxyz'	# a-z without i
 	if j >= len(col_letters):
@@ -86,6 +89,8 @@ class GtpWrapper:
 		'genmove',
 		'showboard',
 		'fixed_handicap',
+		'place_free_handicap',
+		'time_left',
 	}
 
 	def __init__(self, engine_path, debug=False, log_file=None):
@@ -275,6 +280,16 @@ class GtpWrapper:
 		elif result.startswith('!result'):
 			return ERROR, 'engine error: {}'.format(result.replace('!result: ', ''))
 
+		vertices = ' '.join(gtp_vertex(move) for move in result.rstrip(' ').split(' '))
+
+		return OK, vertices
+
+	def cmd_place_free_handicap(self, number_of_stones):
+		return self.cmd_fixed_handicap(number_of_stones)
+
+	def cmd_time_left(self, color, time, stones):
+		# TODO Implement, not just log
+		self._log('# time_left(color={}, time={}, stones={})\n'.format(color, time, stones))
 		return OK, ''
 
 	def preprocess(self, line):

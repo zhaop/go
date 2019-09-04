@@ -24,7 +24,7 @@ Commands supported:
   Reset game state.
 
 - h %d
-  Place %d handicap stones.
+  Place %d handicap stones & print the list of vertices.
   Errors:
   - !syntax
   - !number
@@ -202,6 +202,18 @@ int console_main() {
 					wprintf(L"!result: placing stones not all successful\n");
 					continue;
 				}
+
+				// Print space-delimited list of moves
+				for (int i = 0; i < HEIGHT; ++i) {
+					for (int j = 0; j < WIDTH; ++j) {
+						if (board[i*WIDTH+j].player == BLACK) {
+							move mv = i * WIDTH + j;
+							move_print(&mv);
+							wprintf(L" ");
+						}
+					}
+				}
+				wprintf(L"\n");
 				break;
 			}
 			case 'k': {
