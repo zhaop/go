@@ -1,9 +1,9 @@
 #ifndef PLAYERS_TERESA_H
 #define PLAYERS_TERESA_H
 
-#define TERESA_MAX_NODES 5000*(COUNT)
-#define TERESA_RESIGN_THRESHOLD 0.01
-#define TERESA_DEBUG 1
+#define TERESA_MAX_NODES 60000000
+#define TERESA_RESIGN_THRESHOLD 0.05
+#define TERESA_DEBUG 0
 
 typedef uint32_t teresa_node;
 
@@ -54,6 +54,7 @@ typedef struct {
 } teresa_params;
 
 move_result teresa_play(player*, state*, move*);
+void teresa_reset(player*);
 void teresa_observe(player*, state*, color, move*);
 
 void g(teresa_tree*, teresa_node);

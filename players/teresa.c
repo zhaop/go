@@ -107,7 +107,7 @@ static inline teresa_node teresa_node_sibling(teresa_tree* tree, teresa_node nd,
 }
 
 // Initialize tree: empty decision tree, flat free tree
-static void teresa_init_tree(teresa_tree* tree) {
+static void teresa_tree_init(teresa_tree* tree) {
 	tree->root = NODE_NULL;
 	
 	teresa_node node;
@@ -136,12 +136,12 @@ static void teresa_init_tree(teresa_tree* tree) {
 
 }
 
-static void teresa_init_params(void* params) {
+static void teresa_params_init(void* params) {
 	teresa_tree* tree = ((teresa_params*) params)->tree;
 	if (!tree) {
 		tree = malloc(sizeof(teresa_tree));
 		((teresa_params*) params)->tree = tree;
-		teresa_init_tree(tree);
+		teresa_tree_init(tree);
 
 		teresa_node root = teresa_node_create(tree);
 		assert(root);
@@ -397,7 +397,7 @@ static void graph_tree(FILE* f, teresa_tree* tree, teresa_node nd, int depth, in
 			child = NODE_SIBLING(child);
 		}
 		qsort(node_visits, i, sizeof(int), int_desc_cmp);
-		uint thresh = max(node_visits[min(cutoff, i)-1], 40);
+		unsigned int thresh = max(node_visits[min(cutoff, i)-1], 40);
 		
 		if (i) {
 			child = NODE_CHILD(nd);
@@ -447,7 +447,7 @@ move_result teresa_play(player* self, state* st0, move* mv) {
 	color me = st0->nextPlayer;
 	color notme = (me == BLACK) ? WHITE : BLACK;
 
-	teresa_init_params(self->params);
+	teresa_params_init(self->params);
 	teresa_params* params = (teresa_params*) self->params;
 
 	int N = params->N;
@@ -591,9 +591,24 @@ static void teresa_reset_all_trace_of_move(teresa_tree* tree, teresa_node nd, mo
 	}
 }
 
+void teresa_tree_destroy(teresa_tree* tree) {
+	teresa_node_destroy(tree, tree->root);
+	free(tree);
+}
+
+void teresa_reset(player* self) {
+	if (!self) return;
+
+	teresa_params* params = self->params;
+	if (params->tree) {
+		teresa_tree_destroy(params->tree);
+		params->tree = NULL;
+	}
+}
+
 void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) {
 	st = st;	// @gcc pls dont warn kthx
-	opponent = opponent;
+	opponent = opponent;	// @gcc same
 
 	teresa_params* params = self->params;
 	teresa_tree* tree = params->tree;
@@ -632,18 +647,26 @@ void teresa_observe(player* self, state* st, color opponent, move* opponent_mv) 
 		teresa_destroy_all_children_except_one(tree, root, found);
 		tree->root = root = found;
 	} else if (*opponent_mv == MOVE_PASS) {
-		wprintf(L"I observed an unexpected pass, which confuses me\n");
-		teresa_node_destroy(tree, root);
-		tree->root = NODE_NULL;
+		if (TERESA_DEBUG) {
+			wprintf(L"I observed an unexpected pass, which confuses me\n");
+		}
+
+		teresa_reset(self);
 	} else if (*opponent_mv == MOVE_RESIGN) {
-		wprintf(L"I observed a resignation\n");
-		teresa_node_destroy(tree, root);
-		tree->root = NODE_NULL;
+		if (TERESA_DEBUG) {
+			wprintf(L"I observed a resignation\n");
+		}
+
+		teresa_reset(self);
 	} else {
-		wprintf(L"Error: Teresa could not observe opponent move ");
-		move_print(opponent_mv);
-		wprintf(L"\n");
-		wprintf(L"This is not normal and must be an untreated edge case.\n");
+		if (TERESA_DEBUG) {
+			wprintf(L"Error: Teresa could not observe opponent move ");
+			move_print(opponent_mv);
+			wprintf(L"\n");
+			wprintf(L"This is not normal and must be an untreated edge case.\n");
+		}
+
+		teresa_reset(self);
 	}
 
 	// Go through each child; once move opponent_mv found, delete the whole branch; then recurse on each child

@@ -5,13 +5,12 @@
 #include <stdint.h>
 #include <wchar.h>
 
-#define SIZE 5
-#define COUNT (SIZE*SIZE)
+#define WIDTH 9
+#define HEIGHT 9
+#define COUNT (WIDTH*HEIGHT)
 
 #define NGROUPS (COUNT-1)
 #define NMOVES (COUNT+1)
-
-#define KOMI (6.5)
 
 #define NO_POSSIBLE_KO -1
 #define MOVE_PASS -1
@@ -61,6 +60,7 @@ typedef struct {
 	addr possibleKo;		// Board index or NO_POSSIBLE_KO
 	int passes;		// Consecutive passes (when 2, game is over)
 	int prisoners[3];
+	float komi;
 	struct dot board[COUNT];
 	struct group_pool groups;
 } state;
@@ -103,6 +103,8 @@ void state_destroy(state*);
 
 void state_print(state*);
 
+void state_print_gtp(state*);
+
 void state_dump(state*);
 
 void state_score(state*, float score[3], bool);
@@ -111,6 +113,8 @@ color state_winner(state*);
 
 
 bool fills_in_friendly_eye(dot*, color, int, int);
+
+bool go_place_fixed_handicap(state*, int);
 
 bool go_is_game_over(state*);
 
